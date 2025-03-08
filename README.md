@@ -1,12 +1,61 @@
-# React + Vite
+# Web-Based Discussion Forum Platform
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A simple yet powerful web-based discussion forum where users can sign up, create forums, and participate in conversations across various topics and categories.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This platform provides a text-based forum system with user authentication, forum creation and management capabilities, and interactive discussion interfaces. Users can create their own forums, join existing ones, and engage in meaningful conversations with proper moderation tools available to forum creators.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend using TypeScript and enable type-aware lint rules. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### User Authentication System
+
+- Secure sign-up process using email and password
+- User login/logout functionality
+- User profile management
+
+### Forum Creation and Management
+
+- Create custom forums with descriptive attributes:
+  - Forum Name
+  - Category selection (Technology, Science, Gaming, etc.)
+  - Custom tags for improved searchability
+  - Forum description
+- Moderation tools for forum creators:
+  - Lock forums to prevent new posts
+  - Delete forums when no longer needed
+
+### Discussion Interface
+
+- Join any available forum on the platform
+- Interactive text-based chat interface supporting:
+  - Post creation
+  - Threaded replies
+  - User mentions via "@username" format
+  - Text formatting options
+
+### User Homepage & Forum Discovery
+
+- Comprehensive homepage displaying all available forums
+- Advanced filtering capabilities:
+  - Filter by category
+  - View joined forums
+  - Search by tags or keywords
+
+## Contributing
+
+If you'd like to contribute to this project, please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+## License
+
+Copyright (c) all rights reserved.
+
+This project is proprietary and confidential. Unauthorized copying, distribution, modification, public display, or public performance of this proprietary work is a violation of copyright law.
+
+No part of this software may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of the copyright holder.
+
+For permission requests, contact the copyright holder.
