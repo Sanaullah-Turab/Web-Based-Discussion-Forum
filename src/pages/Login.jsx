@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BsGoogle, BsFacebook, BsMicrosoft, BsApple } from "react-icons/bs"; // You'll need to install react-icons
+import { BsGoogle, BsFacebook, BsMicrosoft, BsApple } from "react-icons/bs";
 
 const Login = () => {
   const [isActive, setIsActive] = useState(false);
@@ -14,7 +14,7 @@ const Login = () => {
 
   const handleSignIn = (e) => {
     e.preventDefault();
-    window.location.href = "amazon.html"; // Redirect to amazon.html
+    window.location.href = ""; // redirect to anywhere we want, will decide it later
   };
 
   return (
