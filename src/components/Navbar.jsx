@@ -12,7 +12,7 @@ const Navbar = () => {
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo */}
         <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
-          ABC <span className="text-[#122a6b]">Website</span>
+          Code <span className="text-[#122a6b] -ml-2 ">Convo</span>
         </h1>
 
         {/* Right side content */}
