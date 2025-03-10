@@ -10,7 +10,7 @@ how to start backend server:
 After this run this command to start the server:
 Python manage.py runserver
 
-1. http://localhost:8000:auth/csrf/:
+1. http://localhost:8000/auth/csrf/:
 
    make this request in the start of react app and store the csrf token in any state or local storage you will need these token for next every request:
    sample request:
@@ -34,7 +34,7 @@ Python manage.py runserver
 
      `.catch((err) => console.error("Fetch error:", err));`
 
-   2. http://localhost:8000:auth/register:
+   2. http://localhost:8000/auth/register:
       make post request and send data in this format:
       {
 
