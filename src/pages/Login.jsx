@@ -14,7 +14,7 @@ const Login = () => {
 
   const handleSignIn = (e) => {
     e.preventDefault();
-    window.location.href = ""; // redirect to anywhere we want, will decide it later
+    window.location.href = " /home ";
   };
 
   return (
