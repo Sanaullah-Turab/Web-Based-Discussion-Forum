@@ -5,6 +5,7 @@ import Forums from "./pages/Forums";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 
 function App() {
   
@@ -17,6 +18,7 @@ function App() {
         <Route path="/home" element={<Home />} />
         <Route path="/signup" element={<Signup />} />
       </Routes>
+      <Footer />
     </Router>
   );
 }
