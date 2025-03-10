@@ -18,7 +18,7 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-200 font-['Montserrat']">
+    <div className="flex items-center justify-center min-h-screen bg-gray-200 font-['Poppins']">
       <div
         className={`relative overflow-hidden w-full max-w-3xl min-h-[480px] bg-white rounded-3xl shadow-lg ${
           isActive ? "active" : ""
@@ -131,7 +131,7 @@ const Login = () => {
             </a>
             <button
               onClick={handleSignIn}
-              className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-white uppercase bg-[#0d1e4c] rounded-lg cursor-pointer border border-transparent"
+              className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-white uppercase bg-[#122a6b] rounded-lg cursor-pointer border border-transparent"
             >
               Sign In
             </button>
@@ -158,7 +158,7 @@ const Login = () => {
               </p>
               <button
                 onClick={handleLoginClick}
-                className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-[#0d1e4c] bg-white uppercase rounded-lg cursor-pointer border border-white"
+                className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-[#122a6b] bg-white uppercase rounded-lg cursor-pointer border border-white"
               >
                 Sign In
               </button>
@@ -175,7 +175,7 @@ const Login = () => {
               </p>
               <button
                 onClick={handleRegisterClick}
-                className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-[#0d1e4c] bg-white uppercase rounded-lg cursor-pointer border border-white"
+                className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-[#122a6b] bg-white uppercase rounded-lg cursor-pointer border border-white"
               >
                 Sign Up
               </button>
