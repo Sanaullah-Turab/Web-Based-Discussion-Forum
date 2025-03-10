@@ -18,7 +18,7 @@ const Login = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-200 font-['Poppins']">
+    <div className="flex items-center justify-center min-h-[80vh] sm:min-h-screen bg-gray-200 font-['Poppins'] px-5 sm:px-0">
       <div
         className={`relative overflow-hidden w-full max-w-3xl min-h-[480px] bg-white rounded-3xl shadow-lg ${
           isActive ? "active" : ""
