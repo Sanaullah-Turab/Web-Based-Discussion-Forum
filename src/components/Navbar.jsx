@@ -11,8 +11,8 @@ const Navbar = () => {
   return (
     <nav className="bg-white px-6 py-3 shadow font-poppins">
       <div className="container mx-auto flex justify-between items-center">
-        {/* Logo */}
-        <div className="flex items-center">
+        {/* Logo and Title - Clickable to go home */}
+        <Link to="/" className="flex items-center cursor-pointer">
           <img
             src={logoImage}
             alt="Code Convo Logo"
@@ -21,15 +21,12 @@ const Navbar = () => {
           <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
             Code <span className="text-[#122a6b] -ml-[6px] md:-ml-2 ">Convo</span>
           </h1>
-        </div>
+        </Link>
 
         {/* Right side content */}
         <div className="flex items-center space-x-4 sm:space-x-6">
           {/* Navigation links (visible on larger screens) */}
           <div className="hidden sm:flex space-x-6">
-            <Link to="/forums" className="text-gray-700 text-lg">
-              Forums
-            </Link>
             <Link to="/about" className="text-gray-700 text-lg">
               About
             </Link>
