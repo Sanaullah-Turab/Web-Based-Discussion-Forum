@@ -52,7 +52,7 @@ If you'd like to contribute to this project, please:
 
 ## License
 
-Copyright (c) all rights reserved.
+© 2025 Sanaullah, all rights reserved.
 
 This project is proprietary and confidential. Unauthorized copying, distribution, modification, public display, or public performance of this proprietary work is a violation of copyright law.
 

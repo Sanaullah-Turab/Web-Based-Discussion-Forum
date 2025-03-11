@@ -58,21 +58,29 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'mysite.urls'
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    "http://localhost:5173",  # Vite default
+    "http://localhost:3000",  # React default
 ]
-
 
 CORS_ALLOW_CREDENTIALS = True  # Allow cookies for authentication
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",  # Allow CSRF cookies from React app
-    "http://127.0.0.1:5173",   
+    "http://localhost:3000",
 ]
 
-
-
-
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-csrf-token',  # Add this
+    'x-requested-with',
+]
 
 TEMPLATES = [
     {
