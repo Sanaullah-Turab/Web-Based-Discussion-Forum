@@ -15,9 +15,9 @@ const Footer = () => {
                 alt="Code Convo Logo"
                 className="h-8 sm:h-10 mr-2"
               />
-              <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
                 Code{" "}
-                <span className="text-[#122a6b] -ml-1 md:-ml-2">Convo</span>
+              <span className="text-[#122a6b] -ml-1 md:-ml-1">Convo</span>
               </h1>
             </div>
             <p className="text-gray-600 mt-1">Where People Connect & Share.</p>

@@ -9,7 +9,7 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-white px-6 py-3 shadow font-poppins">
+    <nav className="bg-white px-6 py-3 shadow font-[Poppins]">
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo and Title - Clickable to go home */}
         <Link to="/" className="flex items-center cursor-pointer">
@@ -18,8 +18,8 @@ const Navbar = () => {
             alt="Code Convo Logo"
             className="h-8 sm:h-10 mr-2"
           />
-          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
-            Code <span className="text-[#122a6b] -ml-[6px] md:-ml-2 ">Convo</span>
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
+            Code <span className="text-[#365cc4] -ml-[6px] md:-ml-1 ">Convo</span>
           </h1>
         </Link>
 
