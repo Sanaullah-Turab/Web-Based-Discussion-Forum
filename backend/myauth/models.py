@@ -35,13 +35,11 @@ class User(AbstractUser):
 
     groups = models.ManyToManyField(
         Group,
-        related_name='customuser_groups',
         blank=True,
         help_text='The groups this user belongs to.'
     )
     user_permissions = models.ManyToManyField(
         Permission,
-        related_name='customuser_permissions',
         blank=True,
         help_text='Specific permissions for this user.'
     )

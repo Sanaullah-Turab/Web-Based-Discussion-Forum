@@ -107,3 +107,113 @@ Python manage.py runserver
    and in the body send **refresh token**
 
    it will logout the user
+
+
+
+**Forums API's**
+
+create, update, delete, get, filter forums
+
+2. http://localhost:8000/api/categories or 'api/tags':
+
+   will return the list of available tags or categories
+   only admin can add tags or categories through admin panel
+   for admin panel visit http://localhost:8000/admin
+   email: soban@gmail.com
+   password: 1234
+
+​	make sure to run `python mange.py makemigrations` and **python manage.py migrate**
+
+
+
+​	also you can create new admin by running:
+​	`cd backend`
+
+​	`python manage.py createsuperuser`
+
+1. http://localhost:8000/api/forums:
+   on `GET` request it will return list of all the forums with following detail:
+
+   [
+
+     `{`
+
+   ​    `"id": 1,`
+
+   ​    `"name": "General Discussion",`
+
+   ​    `"category_detail": {`
+
+   ​      `"id": 2,`
+
+   ​      `"name": "Technology"`
+
+   ​    `},`
+
+   ​    `"tags_detail": [`
+
+   ​      `{`
+
+   ​        `"id": 1,`
+
+   ​        `"name": "sports"`
+
+   ​      `}`
+
+   ​    `],`
+
+   ​    `"description": "A forum for discussing general topics.",`
+
+   ​    `"created_by": {`
+
+   ​      `"id": 2,`
+
+   ​      `"email": "msoban@gmail.com",`
+
+   ​      `"name": "soban"`
+
+   ​    `},`
+
+   ​    `"is_locked": **false**,`
+
+   ​    `"is_deleted": **false**,`
+
+   ​    `"created_at": "2025-03-11T14:20:32.573597Z",`
+
+   ​    `"updated_at": "2025-03-11T14:20:32.573597Z"`
+
+     `},`
+   `]`
+
+
+   on **POST** request it will create forum for current authenticated user input format:
+   `{`
+
+    `"name": "Science Discussion",`
+
+    `"category": 3,` #category_id
+
+    `"tags": [1],`# list of tags_id
+
+    `"description": "A forum for discussing Science topics.",`
+
+    `"is_locked": **false**`
+
+   `}`
+
+   
+
+   for **put/patch** request use forum id after **api/forums/<forum_id>** to update any forum
+
+   to GET single forum use **api/forums/<forum_id>**
+
+   to **DELETE** use **api/forums/<forum_id>**
+
+
+
+**GET result by Filter**
+
+you can use filter to get forums such as by passing category_id, user_id, tags_id (tags_id can be multiple or single)
+
+use something like this for example to get forums of specific user: **api/forums/?user_id=2 **you can apply any filter or multiple for example: **api/forums/?category_id=2&tags_id=1&user_id=2**
+
