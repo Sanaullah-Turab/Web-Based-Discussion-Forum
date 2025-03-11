@@ -5,6 +5,7 @@ from .serializers import CategorySerializer, TagSerializer, ForumSerializer, For
 from .models import Category, Tag, Forum, ForumMembership, Message, MessageMention
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework import viewsets
+from rest_framework.pagination import PageNumberPagination
 
 class CategoryList(APIView):
     """
@@ -28,6 +29,14 @@ class TagList(APIView):
         serializer = TagSerializer(tags, many=True)
         return Response(serializer.data)
     
+
+class ForumPagination(PageNumberPagination):
+    page_size = 10  # Default page size
+    page_size_query_param = 'page_size'  # Allow client to override using query parameter
+    max_page_size = 100  # Maximum allowed page size
+    
+    
+    
 class ForumViewSet(viewsets.ModelViewSet):
     """
     A viewset that provides the standard actions for Forum:
@@ -37,6 +46,7 @@ class ForumViewSet(viewsets.ModelViewSet):
     # Only show forums that are not marked as deleted
     queryset = Forum.objects.filter(is_deleted=False)
     permission_classes = [IsAuthenticatedOrReadOnly]
+    pagination_class = ForumPagination 
     def get_queryset(self):
         queryset = Forum.objects.filter(is_deleted=False)
         category_id = self.request.query_params.get('category_id')

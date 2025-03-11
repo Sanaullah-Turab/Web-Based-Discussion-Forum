@@ -132,71 +132,99 @@ create, update, delete, get, filter forums
 ​	`python manage.py createsuperuser`
 
 1. http://localhost:8000/api/forums:
-   on `GET` request it will return list of all the forums with following detail:
-
-   [
-
-     `{`
-
-   ​    `"id": 1,`
-
-   ​    `"name": "General Discussion",`
-
-   ​    `"category_detail": {`
-
-   ​      `"id": 2,`
-
-   ​      `"name": "Technology"`
-
+   on `GET` request it will return list of all the forums and next or previous pages with following detail:
+   also you can get set page_size and current page like : **api/forums/?page=1&page_size=5**
+   
+   `{`
+   
+     `"count": 5,`
+   
+     `"next": "http://localhost:8000/api/forums/?page=3&page_size=2",`
+   
+     `"previous": "http://localhost:8000/api/forums/?page_size=2",`
+   
+     `"results": [`
+   
+   ​    `{`
+   
+   ​      `"id": 3,`
+   
+   ​      `"name": "Science Discussion",`
+   
+   ​      `"category_detail": **null**,`
+   
+   ​      `"tags_detail": [],`
+   
+   ​      `"description": "A forum for discussing Science topics.",`
+   
+   ​      `"created_by": {`
+   
+   ​        `"id": 2,`
+   
+   ​        `"email": "msoban@gmail.com",`
+   
+   ​        `"name": "soban"`
+   
+   ​      `},`
+   
+   ​      `"is_locked": **false**,`
+   
+   ​      `"is_deleted": **false**,`
+   
+   ​      `"created_at": "2025-03-11T14:35:19.388171Z",`
+   
+   ​      `"updated_at": "2025-03-11T14:35:19.388171Z"`
+   
    ​    `},`
-
-   ​    `"tags_detail": [`
-
-   ​      `{`
-
-   ​        `"id": 1,`
-
-   ​        `"name": "sports"`
-
-   ​      `}`
-
-   ​    `],`
-
-   ​    `"description": "A forum for discussing general topics.",`
-
-   ​    `"created_by": {`
-
-   ​      `"id": 2,`
-
-   ​      `"email": "msoban@gmail.com",`
-
-   ​      `"name": "soban"`
-
-   ​    `},`
-
-   ​    `"is_locked": **false**,`
-
-   ​    `"is_deleted": **false**,`
-
-   ​    `"created_at": "2025-03-11T14:20:32.573597Z",`
-
-   ​    `"updated_at": "2025-03-11T14:20:32.573597Z"`
-
-     `},`
-   `]`
+   
+   ​    `{`
+   
+   ​      `"id": 4,`
+   
+   ​      `"name": "Science Discussion",`
+   
+   ​      `"category_detail": **null**,`
+   
+   ​      `"tags_detail": [],`
+   
+   ​      `"description": "A forum for discussing Science topics.",`
+   
+   ​      `"created_by": {`
+   
+   ​        `"id": 2,`
+   
+   ​        `"email": "msoban@gmail.com",`
+   
+   ​        `"name": "soban"`
+   
+   ​      `},`
+   
+   ​      `"is_locked": **false**,`
+   
+   ​      `"is_deleted": **false**,`
+   
+   ​      `"created_at": "2025-03-11T14:36:27.427288Z",`
+   
+   ​      `"updated_at": "2025-03-11T14:36:27.427288Z"`
+   
+   ​    `}`
+   
+     `]`
+   
+   `}`
 
 
    on **POST** request it will create forum for current authenticated user input format:
    `{`
 
     `"name": "Science Discussion",`
-
+    
     `"category": 3,` #category_id
-
+    
     `"tags": [1],`# list of tags_id
-
+    
     `"description": "A forum for discussing Science topics.",`
-
+    
     `"is_locked": **false**`
 
    `}`
