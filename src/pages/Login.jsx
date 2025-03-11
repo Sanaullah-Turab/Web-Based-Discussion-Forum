@@ -1,8 +1,55 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BsGoogle, BsFacebook, BsMicrosoft, BsApple } from "react-icons/bs";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [isActive, setIsActive] = useState(false);
+  const navigate = useNavigate();
+
+  // Form states
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [registerName, setRegisterName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+
+  // Auth states
+  const [csrfToken, setCsrfToken] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Fetch CSRF token on component mount
+  useEffect(() => {
+    fetchCsrfToken();
+  }, []);
+
+  const fetchCsrfToken = async () => {
+    try {
+      console.log("Fetching CSRF token...");
+      const response = await fetch("http://localhost:8000/auth/csrf/", {
+        method: "GET",
+        credentials: "include", // Include cookies for CSRF
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch CSRF token");
+      }
+
+      const data = await response.json();
+      console.log("CSRF token response:", data); // Log to see the structure
+
+      // Try different possible field names
+      const token = data.csrf_token || data.csrfToken || data.token;
+      console.log("Using CSRF token:", token);
+      setCsrfToken(token);
+    } catch (err) {
+      console.error("Error fetching CSRF token:", err);
+      setError("Server connection error. Please try again later.");
+    }
+  };
 
   const handleRegisterClick = () => {
     setIsActive(true);
@@ -12,13 +59,142 @@ const Login = () => {
     setIsActive(false);
   };
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
-    window.location.href = " /home ";
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("http://localhost:8000/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+        },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Login failed");
+      }
+
+      // Store tokens in localStorage
+      localStorage.setItem("accessToken", data.tokens.access);
+      localStorage.setItem("refreshToken", data.tokens.refresh);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+        })
+      );
+
+      // Redirect to home page
+      navigate("/home");
+    } catch (err) {
+      console.error("Login error:", err);
+      setError(err.message || "Login failed. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const userData = {
+      name: registerName,
+      email: registerEmail,
+      password: registerPassword,
+    };
+
+    console.log("Submitting registration with data:", {
+      ...userData,
+      password: "********", // Hide actual password in logs
+    });
+    console.log("CSRF Token being used:", csrfToken);
+
+    try {
+      // Try with standard URL first
+      let response = await fetch("http://localhost:8000/auth/register", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+          "X-CSRFToken": csrfToken,
+        },
+        body: JSON.stringify(userData),
+      }).catch(async () => {
+        // If that fails, try with trailing slash
+        console.log("First attempt failed, trying with trailing slash");
+        return await fetch("http://localhost:8000/auth/register/", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify(userData),
+        });
+      });
+
+      if (!response) {
+        throw new Error("Network request failed");
+      }
+
+      console.log("Registration response status:", response.status);
+
+      const data = await response.json();
+      console.log("Registration response data:", data);
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || JSON.stringify(data) || "Registration failed"
+        );
+      }
+
+      // Store tokens in localStorage
+      localStorage.setItem("accessToken", data.tokens.access);
+      localStorage.setItem("refreshToken", data.tokens.refresh);
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: data.id,
+          name: data.name,
+          email: data.email,
+        })
+      );
+
+      // Redirect to home page
+      navigate("/home");
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex items-center justify-center min-h-[80vh] sm:min-h-screen bg-gray-200 font-['Poppins'] px-5 sm:px-0">
+      {/* Error message display */}
+      {error && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+          {error}
+        </div>
+      )}
+
       <div
         className={`relative overflow-hidden w-full max-w-3xl min-h-[480px] bg-white rounded-3xl shadow-lg ${
           isActive ? "active" : ""
@@ -29,7 +205,10 @@ const Login = () => {
           className={`absolute top-0 h-full transition-all duration-500 ease-in-out w-1/2 left-0 opacity-0 z-10 
           ${isActive ? "translate-x-full opacity-100 z-50" : ""}`}
         >
-          <form className="flex flex-col items-center justify-center h-full px-10 bg-white">
+          <form
+            onSubmit={handleSignUp}
+            className="flex flex-col items-center justify-center h-full px-10 bg-white"
+          >
             <h1 className="text-xl font-bold">Create Account</h1>
             <div className="flex my-5">
               <a
@@ -62,19 +241,32 @@ const Login = () => {
               type="text"
               placeholder="Name"
               className="w-full p-3 my-2 text-sm bg-gray-100 border-none rounded-lg outline-none"
+              value={registerName}
+              onChange={(e) => setRegisterName(e.target.value)}
+              required
             />
             <input
               type="email"
               placeholder="E-mail"
               className="w-full p-3 my-2 text-sm bg-gray-100 border-none rounded-lg outline-none"
+              value={registerEmail}
+              onChange={(e) => setRegisterEmail(e.target.value)}
+              required
             />
             <input
               type="password"
               placeholder="Password"
               className="w-full p-3 my-2 text-sm bg-gray-100 border-none rounded-lg outline-none"
+              value={registerPassword}
+              onChange={(e) => setRegisterPassword(e.target.value)}
+              required
             />
-            <button className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-white uppercase bg-[#0d1e4c] rounded-lg cursor-pointer border border-transparent">
-              Sign Up
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-white uppercase bg-[#0d1e4c] rounded-lg cursor-pointer border border-transparent disabled:bg-gray-400"
+            >
+              {loading ? "Please wait..." : "Sign Up"}
             </button>
           </form>
         </div>
@@ -84,7 +276,10 @@ const Login = () => {
           className={`absolute top-0 left-0 w-1/2 h-full z-20 transition-all duration-500 ease-in-out
           ${isActive ? "translate-x-full" : ""}`}
         >
-          <form className="flex flex-col items-center justify-center h-full px-10 bg-white">
+          <form
+            onSubmit={handleSignIn}
+            className="flex flex-col items-center justify-center h-full px-10 bg-white"
+          >
             <h1 className="text-xl font-bold">Sign In</h1>
             <div className="flex my-5">
               <a
@@ -117,11 +312,17 @@ const Login = () => {
               type="email"
               placeholder="E-mail"
               className="w-full p-3 my-2 text-sm bg-gray-100 border-none rounded-lg outline-none"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              required
             />
             <input
               type="password"
               placeholder="Password"
               className="w-full p-3 my-2 text-sm bg-gray-100 border-none rounded-lg outline-none"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              required
             />
             <a
               href="#"
@@ -130,15 +331,16 @@ const Login = () => {
               Forgot Password?
             </a>
             <button
-              onClick={handleSignIn}
-              className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-white uppercase bg-[#122a6b] rounded-lg cursor-pointer border border-transparent"
+              type="submit"
+              disabled={loading}
+              className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-white uppercase bg-[#122a6b] rounded-lg cursor-pointer border border-transparent disabled:bg-gray-400"
             >
-              Sign In
+              {loading ? "Please wait..." : "Sign In"}
             </button>
           </form>
         </div>
 
-        {/* Toggle Container */}
+        {/* Overlay container */}
         <div
           className={`absolute top-0 left-1/2 w-1/2 h-full overflow-hidden transition-all duration-500 ease-in-out z-[1000] rounded-2xl
           ${isActive ? "-translate-x-full" : ""}`}
@@ -147,7 +349,7 @@ const Login = () => {
             className={`bg-[#0d1e4c] text-white relative left-[-100%] h-full w-[200%] transition-all duration-300 ease-in-out
             ${isActive ? "translate-x-1/2" : "translate-x-0"}`}
           >
-            {/* Toggle Left Panel */}
+            {/* Left panel */}
             <div
               className={`absolute w-1/2 h-full flex flex-col items-center justify-center px-8 text-center top-0 transition-all duration-300 ease-in-out
               ${isActive ? "translate-x-0" : "-translate-x-[200%]"}`}
@@ -157,6 +359,7 @@ const Login = () => {
                 Click here to sign in with ID & Password
               </p>
               <button
+                type="button"
                 onClick={handleLoginClick}
                 className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-[#122a6b] bg-white uppercase rounded-lg cursor-pointer border border-white"
               >
@@ -164,7 +367,7 @@ const Login = () => {
               </button>
             </div>
 
-            {/* Toggle Right Panel */}
+            {/* Right panel */}
             <div
               className={`absolute right-0 w-1/2 h-full flex flex-col items-center justify-center px-8 text-center top-0 transition-all duration-300 ease-in-out
               ${isActive ? "translate-x-0" : ""}`}
@@ -174,6 +377,7 @@ const Login = () => {
                 Click here to quickly make one!
               </p>
               <button
+                type="button"
                 onClick={handleRegisterClick}
                 className="px-10 py-2 mt-2 text-xs font-semibold tracking-wider text-[#122a6b] bg-white uppercase rounded-lg cursor-pointer border border-white"
               >
