@@ -3,10 +3,10 @@ import PropTypes from 'prop-types';
 import ChatMessage from './ChatMessage';
 
 const DUMMY_USERS = [
-  { id: 1, name: 'Ali123', avatar: '😊', isCreator: true, role: 'admin', isBanned: false },
-  { id: 2, name: 'sara_dev', avatar: '🙂', role: 'moderator', isBanned: false },
-  { id: 3, name: 'new_coder', avatar: '😎', role: 'user', isBanned: false },
-  { id: 4, name: 'learning_js', avatar: '🤓', role: 'user', isBanned: true },
+  { id: 1, name: 'Ali123', avatar: 'https://i.pravatar.cc/150?img=1', isCreator: true, role: 'admin', isBanned: false },
+  { id: 2, name: 'sara_dev', avatar: 'https://i.pravatar.cc/150?img=5', role: 'moderator', isBanned: false },
+  { id: 3, name: 'new_coder', avatar: 'https://i.pravatar.cc/150?img=3', role: 'user', isBanned: false },
+  { id: 4, name: 'learning_js', avatar: 'https://i.pravatar.cc/150?img=4', role: 'user', isBanned: true },
 ];
 
 const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'];

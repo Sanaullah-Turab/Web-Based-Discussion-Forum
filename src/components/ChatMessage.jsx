@@ -2,10 +2,10 @@ import PropTypes from 'prop-types';
 import { useState } from 'react';
 
 const DUMMY_USERS = [
-  { id: 1, name: 'Ali123', avatar: '😊', role: 'admin' },
-  { id: 2, name: 'sara_dev', avatar: '🙂', role: 'moderator' },
-  { id: 3, name: 'new_coder', avatar: '😎', role: 'user' },
-  { id: 4, name: 'learning_js', avatar: '🤓', role: 'user' },
+  { id: 1, name: 'Ali123', avatar: 'https://i.pravatar.cc/150?img=1', role: 'admin' },
+  { id: 2, name: 'sara_dev', avatar: 'https://i.pravatar.cc/150?img=5', role: 'moderator' },
+  { id: 3, name: 'new_coder', avatar: 'https://i.pravatar.cc/150?img=3', role: 'user' },
+  { id: 4, name: 'learning_js', avatar: 'https://i.pravatar.cc/150?img=4', role: 'user' },
 ];
 
 const ChatMessage = ({ 
@@ -132,7 +132,11 @@ const ChatMessage = ({
     <div className={`relative ${isBanned ? 'opacity-50' : ''}`}>
       <div className="flex gap-3">
         <div className="flex-shrink-0">
-          <span className="text-xl sm:text-2xl">{message.author.avatar}</span>
+          <img 
+            src={message.author.avatar} 
+            alt={message.author.name} 
+            className="w-8 h-8 rounded-full object-cover"
+          />
         </div>
         <div className="flex-grow min-w-0">
           <div className="flex flex-wrap items-start gap-2">
