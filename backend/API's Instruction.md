@@ -245,3 +245,179 @@ you can use filter to get forums such as by passing category_id, user_id, tags_i
 
 use something like this for example to get forums of specific user: **api/forums/?user_id=2 **you can apply any filter or multiple for example: **api/forums/?category_id=2&tags_id=1&user_id=2**
 
+
+
+# ForumMembership api's
+
+1. endpoint **/api/forum-memberships**
+
+​	on **GET** request it will return the list of objects containing user and forum of forums which users `joined:`
+
+`[`
+
+  `{`
+
+​    `"id": 1,`
+
+​    `"user": {`
+
+​      `"id": 3,`
+
+​      `"email": "hello@gmail.com",`
+
+​      `"name": "hello"`
+
+​    `},`
+
+​    `"joined_at": "2025-03-12T17:42:26.088743Z",`
+
+​    `"forum": 1`
+
+  `},`
+
+  `{`
+
+​    `"id": 2,`
+
+​    `"user": {`
+
+​      `"id": 3,`
+
+​      `"email": "hello@gmail.com",`
+
+​      `"name": "hello"`
+
+​    `},`
+
+​    `"joined_at": "2025-03-12T17:43:50.758244Z",`
+
+​    `"forum": 2`
+
+  `}`
+
+`]`
+
+​	you can apply filter like this:
+​	**api/forum-membership/?user_id=2 and /?forum_id=3**
+
+
+
+2. on **POST** request user can joined any forum by passing forum id in body:
+
+​		`{`
+
+​			`"forum" = "4"`
+
+​		`}`  
+
+
+
+3. `DELETE /api/forum-memberships/{id}/` → Remove a user from a forum
+
+# Messages api's
+
+endpoint **/api/messages/**
+
+ 1. On **GET** request you will get list of all messages:
+
+    `[`
+
+      `{`
+
+    ​    `"id": 2,`
+
+    ​    `"content": "@soban This is a test message",`
+
+    ​    `"created_at": "2025-03-12T18:13:40.442029Z",`
+
+    ​    `"updated_at": "2025-03-12T18:13:40.442029Z",`
+
+    ​    `"forum": 1,`
+
+    ​    `"user": 3,`
+
+    ​    `"parent": **null**`
+
+      `},`
+
+      `{`
+
+    ​    `"id": 1,`
+
+    ​    `"content": "This is a test message",`
+
+    ​    `"created_at": "2025-03-12T17:55:42.201742Z",`
+
+    ​    `"updated_at": "2025-03-12T17:55:42.201742Z",`
+
+    ​    `"forum": 2,`
+
+    ​    `"user": 3,`
+
+    ​    `"parent": **null**`
+
+      `}`
+
+    `]`
+
+
+
+​	similarly, you can apply filter to get only messages of specific forum or user:
+​	**api/messages/?user_id=2 and /?forum_id=3**
+
+2. On **POST** request you can comment on a specific forum:
+   pass data like this if you just simply commenting on forum
+
+   **Note**: keep parent null
+
+   `// {`
+
+   `//   "forum": 1,`
+
+   `//   "content": "@soban This is a test message",`
+
+   `//   "parent": null`
+
+   `// }`
+
+​	if you are replying to some person messages **set parent to message_id you are replying to**
+
+​	`// {`
+
+`//   "forum": 1,`
+
+`//   "content": "@soban This is a test message",`
+
+``//   "parent": 10`
+
+`// }`
+
+	3. Similarly, you can make **PUT/Patch and Delete** request
+
+
+
+**NOTE**: User can mention any one by writing @username in the message content 
+
+
+
+# MessageMentions api's
+
+enpoint **/api/message-mentions/**
+
+Only **GET** request to get the list where authenticated user is mentioned(can apply filter by message_id):
+`[`
+
+  `{`
+
+​    `"id": 1,`
+
+​    `"message": 2,`
+
+​    `"mentioned_user": 2`
+
+  `}`
+
+`]`
+
+
+

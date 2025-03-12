@@ -145,12 +145,13 @@ class MessageMentionViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = MessageMention.objects.all()
-        user_id = self.request.query_params.get('user_id')
+        # user_id = self.request.query_params.get('user_id')
         message_id = self.request.query_params.get('message_id')
         
-        if user_id:
-            queryset = queryset.filter(mentioned_user_id=user_id)
+        # if user_id:
+        #     queryset = queryset.filter(mentioned_user_id=user_id)
         
+        queryset = queryset.filter(mentioned_user=self.request.user)
         if message_id:
             queryset = queryset.filter(message_id=message_id)
             
