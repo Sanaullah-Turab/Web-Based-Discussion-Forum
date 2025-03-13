@@ -1,13 +1,40 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import ChatMessage from "./ChatMessage";
 
-// Import the API services we created
+// Import the API services
 import { messageAPI, forumAPI } from "../services/discussionApi";
 
 const REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
 const ALLOWED_FILE_TYPES = [".pdf", ".jpg", ".png", ".zip"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+const DUMMY_USERS = [
+  {
+    id: 1,
+    name: "Ali123",
+    avatar: "https://i.pravatar.cc/150?img=1",
+    role: "admin",
+  },
+  {
+    id: 2,
+    name: "sara_dev",
+    avatar: "https://i.pravatar.cc/150?img=5",
+    role: "moderator",
+  },
+  {
+    id: 3,
+    name: "new_coder",
+    avatar: "https://i.pravatar.cc/150?img=3",
+    role: "user",
+  },
+  {
+    id: 4,
+    name: "learning_js",
+    avatar: "https://i.pravatar.cc/150?img=4",
+    role: "user",
+  },
+];
 
 const ChatDiscussion = ({ forum }) => {
   const [messages, setMessages] = useState([]);
@@ -21,6 +48,7 @@ const ChatDiscussion = ({ forum }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [bannedUsers, setBannedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -28,32 +56,97 @@ const ChatDiscussion = ({ forum }) => {
   useEffect(() => {
     const fetchMessages = async () => {
       setLoading(true);
+      setLoadingMessages(true);
       try {
-        // Get messages for this forum
-        const messagesData = await messageAPI.getMessages({
-          forum_id: forum.id,
-        });
-        setMessages(messagesData);
-        setError(null);
+        setUsers(DUMMY_USERS); // Set dummy users for now
 
         // Get current user from localStorage
         const userJson = localStorage.getItem("user");
         if (userJson) {
           setCurrentUser(JSON.parse(userJson));
         } else {
-          // Fallback to dummy user if not found in localStorage
-          setCurrentUser({
-            id: 1,
-            name: "Demo User",
-            avatar: "https://ui-avatars.com/api/?name=Demo+User",
-            role: "user",
-          });
+          // For testing, set a dummy current user
+          setCurrentUser(DUMMY_USERS[0]);
         }
+
+        // Fetch messages from API
+        try {
+          console.log("Fetching messages for forum:", forum.id);
+          const fetchedMessages = await messageAPI.getMessages({
+            forum_id: forum.id,
+          });
+
+          console.log("Fetched messages:", fetchedMessages);
+
+          // Format messages to match your expected structure
+          const formattedMessages = fetchedMessages.map((msg) => ({
+            id: msg.id,
+            author: {
+              id: msg.author?.id || 0,
+              name: msg.author?.username || "Unknown",
+              avatar:
+                msg.author?.avatar_url ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  msg.author?.username || "Unknown"
+                )}`,
+              role: msg.author?.role || "user",
+            },
+            content: msg.content || "",
+            timestamp: msg.created_at || new Date().toISOString(),
+            isPinned: Boolean(msg.is_pinned),
+            isEdited: Boolean(msg.is_edited),
+            reactions: msg.reactions || {},
+            replies: Array.isArray(msg.replies)
+              ? msg.replies.map((reply) => ({
+                  id: reply.id,
+                  author: {
+                    id: reply.author?.id || 0,
+                    name: reply.author?.username || "Unknown",
+                    avatar:
+                      reply.author?.avatar_url ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        reply.author?.username || "Unknown"
+                      )}`,
+                    role: reply.author?.role || "user",
+                  },
+                  content: reply.content || "",
+                  timestamp: reply.created_at || new Date().toISOString(),
+                  reactions: reply.reactions || {},
+                }))
+              : [],
+            attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
+          }));
+
+          setMessages(formattedMessages);
+        } catch (apiError) {
+          console.error("API error:", apiError);
+
+          // Use dummy data as fallback
+          const dummyMessages = [
+            {
+              id: 1,
+              author: DUMMY_USERS[0],
+              content: "Welcome to the discussion forum!",
+              timestamp: new Date().toISOString(),
+              isPinned: false,
+              isEdited: false,
+              reactions: {},
+              replies: [],
+              attachments: [],
+            },
+          ];
+
+          setMessages(dummyMessages);
+        }
+
+        setError(null);
       } catch (err) {
         console.error("Error fetching messages:", err);
         setError("Failed to load messages. Please try again later.");
+        setMessages([]);
       } finally {
         setLoading(false);
+        setLoadingMessages(false);
       }
     };
 
@@ -66,7 +159,6 @@ const ChatDiscussion = ({ forum }) => {
     setNewMessage(text);
     setCursorPosition(position);
 
-    // Basic @mention detection
     const lastAtSymbol = text.lastIndexOf("@", position);
     if (lastAtSymbol !== -1) {
       const afterAtSymbol = text.slice(lastAtSymbol + 1, position);
@@ -76,6 +168,14 @@ const ChatDiscussion = ({ forum }) => {
         return;
       }
     }
+    setShowMentions(false);
+  };
+
+  const handleMentionClick = (user) => {
+    const textBeforeMention = newMessage.slice(0, newMessage.lastIndexOf("@"));
+    const textAfterMention = newMessage.slice(cursorPosition);
+    const newText = `${textBeforeMention}@${user.name} ${textAfterMention}`;
+    setNewMessage(newText);
     setShowMentions(false);
   };
 
@@ -98,25 +198,18 @@ const ChatDiscussion = ({ forum }) => {
     setSelectedFile(file);
   };
 
-  const handleMentionClick = (user) => {
-    const textBeforeMention = newMessage.slice(0, newMessage.lastIndexOf("@"));
-    const textAfterMention = newMessage.slice(cursorPosition);
-    const newText = `${textBeforeMention}@${user.name} ${textAfterMention}`;
-    setNewMessage(newText);
-    setShowMentions(false);
-  };
-
   const handleNewMessage = async (e) => {
     e.preventDefault();
     if (newMessage.trim() && !isLocked) {
       try {
-        // Make sure to include the current user as the author
-        const newMsg = {
-          id: Date.now(), // Use timestamp as temporary ID
+        // Show optimistic UI update
+        const tempId = `temp-${Date.now()}`;
+        const tempMessage = {
+          id: tempId,
           author: currentUser || {
             id: 0,
-            name: "Unknown",
-            avatar: "https://ui-avatars.com/api/?name=Unknown",
+            name: "You",
+            avatar: "https://ui-avatars.com/api/?name=You",
             role: "user",
           },
           content: newMessage,
@@ -136,54 +229,166 @@ const ChatDiscussion = ({ forum }) => {
             : [],
         };
 
-        setMessages([newMsg, ...messages]);
+        // Add temporary message for instant feedback
+        setMessages((prevMessages) => [tempMessage, ...prevMessages]);
+
+        // Clear the form
         setNewMessage("");
         setSelectedFile(null);
+
+        // Prepare the data for the API
+        const messageData = {
+          content: newMessage,
+          forum: forum.id, // Make sure this matches what your API expects
+        };
+
+        console.log("Sending message data to API:", messageData);
+
+        // Send to backend API
+        const createdMessage = await messageAPI.createMessage(messageData);
+        console.log("API response:", createdMessage);
+
+        // Replace the temporary message with the real one from API
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
+            msg.id === tempId
+              ? {
+                  id: createdMessage.id,
+                  author: {
+                    id: createdMessage.author?.id || currentUser?.id || 0,
+                    name:
+                      createdMessage.author?.username ||
+                      createdMessage.author?.name ||
+                      currentUser?.name ||
+                      "Unknown",
+                    avatar:
+                      createdMessage.author?.avatar_url ||
+                      (currentUser?.name
+                        ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            currentUser.name
+                          )}`
+                        : "https://ui-avatars.com/api/?name=Unknown"),
+                    role:
+                      createdMessage.author?.role ||
+                      currentUser?.role ||
+                      "user",
+                  },
+                  content: createdMessage.content || newMessage,
+                  timestamp:
+                    createdMessage.created_at || new Date().toISOString(),
+                  isPinned: Boolean(createdMessage.is_pinned),
+                  isEdited: Boolean(createdMessage.is_edited),
+                  reactions: createdMessage.reactions || {},
+                  replies: createdMessage.replies || [],
+                  attachments: createdMessage.attachments || [],
+                }
+              : msg
+          )
+        );
       } catch (err) {
         console.error("Error creating message:", err);
         alert("Failed to send message. Please try again.");
+
+        // Remove the optimistic message if API call failed
+        setMessages((prevMessages) =>
+          prevMessages.filter((msg) => !String(msg.id).startsWith("temp-"))
+        );
       }
     }
   };
 
   const handleReply = async (messageId, replyText) => {
-    if (!isLocked) {
-      try {
-        // Create a reply (which is just a message with a parent_id)
-        const replyData = {
-          content: replyText,
-          forum: forum.id,
-          parent: messageId,
-        };
+    if (!replyText.trim() || isLocked) return;
 
-        const createdReply = await messageAPI.createMessage(replyData);
+    try {
+      // Prepare reply data
+      const replyData = {
+        content: replyText,
+        parent_message: messageId,
+        forum: forum.id,
+      };
 
-        // Update the local state
-        setMessages(
-          messages.map((message) => {
-            if (message.id === messageId) {
-              return {
-                ...message,
-                replies: [...(message.replies || []), createdReply],
-              };
-            }
-            return message;
-          })
-        );
-      } catch (err) {
-        console.error("Error creating reply:", err);
-        alert("Failed to send reply. Please try again.");
-      }
+      // Send to API
+      const createdReply = await messageAPI.createMessage(replyData);
+
+      // Format the reply data
+      const formattedReply = {
+        id: createdReply.id,
+        author: {
+          id: createdReply.author?.id || currentUser?.id,
+          name: createdReply.author?.username || currentUser?.name,
+          avatar: createdReply.author?.avatar_url || currentUser?.avatar,
+          role: createdReply.author?.role || "user",
+        },
+        content: createdReply.content,
+        timestamp: createdReply.created_at || new Date().toISOString(),
+        reactions: {},
+      };
+
+      // Update local state
+      setMessages(
+        messages.map((message) => {
+          if (message.id === messageId) {
+            return {
+              ...message,
+              replies: [...(message.replies || []), formattedReply],
+            };
+          }
+          return message;
+        })
+      );
+    } catch (err) {
+      console.error("Error creating reply:", err);
+      alert("Failed to send reply. Please try again.");
     }
   };
 
   const handleDeleteMessage = async (messageId) => {
     try {
+      // Call API to delete message
       await messageAPI.deleteMessage(messageId);
+
+      // Update local state
       setMessages(messages.filter((message) => message.id !== messageId));
     } catch (err) {
       console.error("Error deleting message:", err);
       alert("Failed to delete message. Please try again.");
+    }
+  };
+
+  const handlePinMessage = async (messageId) => {
+    try {
+      // Find the message to pin/unpin
+      const messageToUpdate = messages.find((m) => m.id === messageId);
+
+      if (!messageToUpdate) {
+        console.error(`Message with ID ${messageId} not found`);
+        return;
+      }
+
+      // Toggle the isPinned status
+      const updatedData = {
+        is_pinned: !messageToUpdate.isPinned,
+      };
+
+      // Call API
+      await messageAPI.updateMessage(messageId, updatedData);
+
+      // Update local state
+      setMessages(
+        messages.map((message) => {
+          if (message.id === messageId) {
+            return {
+              ...message,
+              isPinned: !message.isPinned,
+            };
+          }
+          return message;
+        })
+      );
+    } catch (err) {
+      console.error("Error pinning message:", err);
+      alert("Failed to pin message. Please try again.");
     }
   };
 
@@ -217,8 +422,6 @@ const ChatDiscussion = ({ forum }) => {
     }
   };
 
-  // Add this function after your existing handler functions
-
   const handleReaction = async (
     messageId,
     reaction,
@@ -226,6 +429,19 @@ const ChatDiscussion = ({ forum }) => {
     replyId = null
   ) => {
     try {
+      // Call API to add or remove reaction
+      const reactionData = {
+        message_id: messageId,
+        reaction_type: reaction,
+      };
+
+      if (isReply) {
+        reactionData.reply_id = replyId;
+      }
+
+      // This endpoint doesn't exist in your API yet, so just update local state
+      // await messageAPI.toggleReaction(reactionData);
+
       if (isReply && replyId !== null) {
         // Handle reaction to a reply
         setMessages(
@@ -284,60 +500,6 @@ const ChatDiscussion = ({ forum }) => {
     }
   };
 
-  // Add this function after your existing handler functions
-
-  const handlePinMessage = async (messageId) => {
-    try {
-      // Find the message to pin/unpin
-      const messageToUpdate = messages.find((m) => m.id === messageId);
-
-      if (!messageToUpdate) {
-        console.error(`Message with ID ${messageId} not found`);
-        return;
-      }
-
-      // Toggle the isPinned status
-      const updatedData = {
-        is_pinned: !messageToUpdate.isPinned,
-      };
-
-      // Update in backend (if API is available)
-      // await messageAPI.updateMessage(messageId, updatedData);
-
-      // Update local state
-      setMessages(
-        messages.map((message) => {
-          if (message.id === messageId) {
-            return {
-              ...message,
-              isPinned: !message.isPinned,
-            };
-          }
-          return message;
-        })
-      );
-    } catch (err) {
-      console.error("Error pinning message:", err);
-      alert("Failed to pin message. Please try again.");
-    }
-  };
-
-  // Handle toggling the forum lock status
-  const handleToggleLock = async () => {
-    try {
-      // Use the forumAPI to update the forum
-      const updatedForum = await forumAPI.updateForum(forum.id, {
-        is_locked: !isLocked,
-      });
-
-      // Update local state based on the response
-      setIsLocked(updatedForum.is_locked);
-    } catch (err) {
-      console.error("Error toggling forum lock:", err);
-      alert("Failed to update forum status.");
-    }
-  };
-
   const handleBanUser = (userId) => {
     setBannedUsers([...bannedUsers, userId]);
     // If you have a backend API for banning users, you can call it here
@@ -350,17 +512,37 @@ const ChatDiscussion = ({ forum }) => {
     console.log(`User ${userId} has been unbanned`);
   };
 
+  const handleToggleLock = async () => {
+    try {
+      // Update the forum lock status in the backend
+      const updateData = {
+        is_locked: !isLocked,
+      };
+
+      await forumAPI.updateForum(forum.id, updateData);
+
+      // Update local state
+      setIsLocked(!isLocked);
+    } catch (err) {
+      console.error("Error toggling forum lock:", err);
+      alert("Failed to update forum status.");
+    }
+  };
+
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(mentionSearch.toLowerCase())
+  );
+
+  // Compute isCreator and canModerate
   const isCreator = currentUser && forum.creator_id === currentUser.id;
   const canModerate =
-    currentUser &&
-    (currentUser.role === "admin" || currentUser.role === "moderator");
+    currentUser && ["admin", "moderator"].includes(currentUser.role);
 
+  // Sort messages: pinned first, then by timestamp
   const sortedMessages = [...messages].sort((a, b) => {
-    // Sort by creation time, newest first
-    return (
-      new Date(b.created_at || b.timestamp) -
-      new Date(a.created_at || a.timestamp)
-    );
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return new Date(b.timestamp) - new Date(a.timestamp);
   });
 
   if (loading) {
@@ -373,7 +555,6 @@ const ChatDiscussion = ({ forum }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 font-[Poppins]">
-      {/* Header section */}
       <div className="p-3 sm:p-4 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
@@ -426,37 +607,43 @@ const ChatDiscussion = ({ forum }) => {
         </div>
       </div>
 
-      {/* Messages list - you can add this if needed */}
+      {/* Messages list */}
       <div className="divide-y divide-gray-100">
-        {sortedMessages.map((message) => (
-          <div key={message.id} className="p-3 sm:p-4">
-            <ChatMessage
-              message={message}
-              onReply={(replyText) => handleReply(message.id, replyText)}
-              onDelete={() => handleDeleteMessage(message.id)}
-              onPin={() => handlePinMessage(message.id)}
-              onEdit={(newContent) => handleEditMessage(message.id, newContent)}
-              onReaction={(reaction) => handleReaction(message.id, reaction)}
-              onReplyReaction={(reaction, replyId) =>
-                handleReaction(message.id, reaction, true, replyId)
-              }
-              onBanUser={handleBanUser}
-              onUnbanUser={handleUnbanUser}
-              isCreator={isCreator}
-              canModerate={canModerate}
-              isLocked={isLocked}
-              isEditing={editingMessage === message.id}
-              setEditing={(isEditing) =>
-                setEditingMessage(isEditing ? message.id : null)
-              }
-              availableReactions={REACTIONS}
-              bannedUsers={bannedUsers}
-              currentUser={currentUser}
-            />
+        {loadingMessages ? (
+          <div className="p-6 text-center text-gray-500">
+            Loading messages...
           </div>
-        ))}
-
-        {messages.length === 0 && (
+        ) : sortedMessages.length > 0 ? (
+          sortedMessages.map((message) => (
+            <div key={message.id} className="p-3 sm:p-4">
+              <ChatMessage
+                message={message}
+                onReply={(replyText) => handleReply(message.id, replyText)}
+                onDelete={() => handleDeleteMessage(message.id)}
+                onPin={() => handlePinMessage(message.id)}
+                onEdit={(newContent) =>
+                  handleEditMessage(message.id, newContent)
+                }
+                onReaction={(reaction) => handleReaction(message.id, reaction)}
+                onReplyReaction={(reaction, replyId) =>
+                  handleReaction(message.id, reaction, true, replyId)
+                }
+                onBanUser={handleBanUser}
+                onUnbanUser={handleUnbanUser}
+                isCreator={isCreator}
+                canModerate={canModerate}
+                isLocked={isLocked}
+                isEditing={editingMessage === message.id}
+                setEditing={(isEditing) =>
+                  setEditingMessage(isEditing ? message.id : null)
+                }
+                availableReactions={REACTIONS}
+                bannedUsers={bannedUsers}
+                currentUser={currentUser}
+              />
+            </div>
+          ))
+        ) : (
           <div className="p-6 text-center text-gray-500">
             No messages yet. Be the first to post!
           </div>
@@ -485,37 +672,41 @@ const ChatDiscussion = ({ forum }) => {
               Send
             </button>
 
+            {/* Show selected file */}
+            {selectedFile && (
+              <div className="mt-2 flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                <span>📎 {selectedFile.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFile(null)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Mentions dropdown */}
-            {showMentions && (
+            {showMentions && filteredUsers.length > 0 && (
               <div className="absolute left-0 right-0 bottom-full mb-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto">
-                {users
-                  .filter((user) =>
-                    user.name
-                      .toLowerCase()
-                      .includes(mentionSearch.toLowerCase())
-                  )
-                  .map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      onClick={() => handleMentionClick(user)}
-                      className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
-                    >
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span>{user.name}</span>
-                    </button>
-                  ))}
-                {users.filter((user) =>
-                  user.name.toLowerCase().includes(mentionSearch.toLowerCase())
-                ).length === 0 && (
-                  <div className="px-3 py-2 text-sm text-gray-500">
-                    No users found
-                  </div>
-                )}
+                {filteredUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    onClick={() => handleMentionClick(user)}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-sm"
+                  >
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-6 h-6 rounded-full"
+                    />
+                    <span>{user.name}</span>
+                    <span className="ml-auto text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-500">
+                      {user.role}
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
           </form>
@@ -527,12 +718,22 @@ const ChatDiscussion = ({ forum }) => {
 
 ChatDiscussion.propTypes = {
   forum: PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
     title: PropTypes.string.isRequired,
     category: PropTypes.object,
     creator_id: PropTypes.number,
     is_locked: PropTypes.bool,
   }).isRequired,
+};
+
+ChatDiscussion.defaultProps = {
+  forum: {
+    id: 1,
+    title: "Discussion Forum",
+    category: { name: "General" },
+    creator_id: 1,
+    is_locked: false,
+  },
 };
 
 export default ChatDiscussion;

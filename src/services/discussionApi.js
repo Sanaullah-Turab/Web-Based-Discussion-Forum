@@ -59,6 +59,8 @@ export const messageAPI = {
   // Create a new message or reply
   createMessage: async (messageData) => {
     try {
+      console.log("Making API request to create message:", messageData);
+
       const response = await fetch(`${API_BASE_URL}/api/messages/`, {
         method: "POST",
         credentials: "include",
@@ -67,9 +69,12 @@ export const messageAPI = {
       });
 
       const data = await response.json();
+      console.log("Response from server:", data);
 
       if (!response.ok) {
-        throw new Error(data.detail || "Failed to create message");
+        throw new Error(
+          data.detail || JSON.stringify(data) || "Failed to create message"
+        );
       }
 
       return data;
