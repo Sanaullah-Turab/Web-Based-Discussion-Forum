@@ -51,6 +51,34 @@ const ChatDiscussion = ({ forum }) => {
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [userMap, setUserMap] = useState({});
+
+  // Helper function to get user details from ID
+  const getUserDetails = (userId, usersMap = {}) => {
+    // If we have the user in our map, return it
+    if (usersMap[userId]) {
+      return usersMap[userId];
+    }
+
+    // Check if we can find the user in DUMMY_USERS (for testing)
+    const dummyUser = DUMMY_USERS.find((user) => user.id === userId);
+    if (dummyUser) {
+      return dummyUser;
+    }
+
+    // If it's the current user
+    if (currentUser && currentUser.id === userId) {
+      return currentUser;
+    }
+
+    // For now, return a default with the correct ID
+    return {
+      id: userId,
+      name: `User ${userId}`, // Better than "Unknown"
+      avatar: `https://ui-avatars.com/api/?name=User+${userId}`,
+      role: "user",
+    };
+  };
 
   // Fetch messages when the component mounts or forum changes
   useEffect(() => {
@@ -58,16 +86,40 @@ const ChatDiscussion = ({ forum }) => {
       setLoading(true);
       setLoadingMessages(true);
       try {
-        setUsers(DUMMY_USERS); // Set dummy users for now
+        // Initialize user data
+        setUsers(DUMMY_USERS);
 
         // Get current user from localStorage
         const userJson = localStorage.getItem("user");
+        let currentUserData;
         if (userJson) {
-          setCurrentUser(JSON.parse(userJson));
+          currentUserData = JSON.parse(userJson);
+          setCurrentUser(currentUserData);
         } else {
           // For testing, set a dummy current user
-          setCurrentUser(DUMMY_USERS[0]);
+          currentUserData = DUMMY_USERS[0];
+          setCurrentUser(currentUserData);
         }
+
+        // Create a map of users for quick lookup
+        const newUserMap = {};
+
+        // Add current user to the map
+        if (currentUserData) {
+          newUserMap[currentUserData.id] = {
+            id: currentUserData.id,
+            name: currentUserData.name,
+            avatar: currentUserData.avatar,
+            role: currentUserData.role,
+          };
+        }
+
+        // Add dummy users to the map
+        DUMMY_USERS.forEach((user) => {
+          newUserMap[user.id] = user;
+        });
+
+        setUserMap(newUserMap);
 
         // Fetch messages from API
         try {
@@ -78,44 +130,75 @@ const ChatDiscussion = ({ forum }) => {
 
           console.log("Fetched messages:", fetchedMessages);
 
-          // Format messages to match your expected structure
-          const formattedMessages = fetchedMessages.map((msg) => ({
-            id: msg.id,
-            author: {
-              id: msg.author?.id || 0,
-              name: msg.author?.username || "Unknown",
-              avatar:
-                msg.author?.avatar_url ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  msg.author?.username || "Unknown"
-                )}`,
-              role: msg.author?.role || "user",
-            },
-            content: msg.content || "",
-            timestamp: msg.created_at || new Date().toISOString(),
-            isPinned: Boolean(msg.is_pinned),
-            isEdited: Boolean(msg.is_edited),
-            reactions: msg.reactions || {},
-            replies: Array.isArray(msg.replies)
-              ? msg.replies.map((reply) => ({
-                  id: reply.id,
-                  author: {
-                    id: reply.author?.id || 0,
-                    name: reply.author?.username || "Unknown",
-                    avatar:
-                      reply.author?.avatar_url ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        reply.author?.username || "Unknown"
-                      )}`,
-                    role: reply.author?.role || "user",
-                  },
-                  content: reply.content || "",
-                  timestamp: reply.created_at || new Date().toISOString(),
-                  reactions: reply.reactions || {},
-                }))
-              : [],
-            attachments: Array.isArray(msg.attachments) ? msg.attachments : [],
-          }));
+          // Format messages with proper user details
+          const formattedMessages = fetchedMessages.map((msg) => {
+            // Extract user info from the message or userMap
+            const authorId = msg.user || msg.author?.id;
+            const authorDetails = getUserDetails(authorId, newUserMap);
+
+            return {
+              id: msg.id,
+              author: {
+                id: authorDetails.id,
+                name:
+                  authorDetails.name ||
+                  msg.author?.username ||
+                  "User " + authorId,
+                avatar:
+                  authorDetails.avatar ||
+                  msg.author?.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    authorDetails.name ||
+                      msg.author?.username ||
+                      "User " + authorId
+                  )}`,
+                role: authorDetails.role || msg.author?.role || "user",
+              },
+              content: msg.content || "",
+              timestamp: msg.created_at || new Date().toISOString(),
+              isPinned: Boolean(msg.is_pinned),
+              isEdited: Boolean(msg.is_edited),
+              reactions: msg.reactions || {},
+              replies: Array.isArray(msg.replies)
+                ? msg.replies.map((reply) => {
+                    const replyAuthorId = reply.user || reply.author?.id;
+                    const replyAuthorDetails = getUserDetails(
+                      replyAuthorId,
+                      newUserMap
+                    );
+
+                    return {
+                      id: reply.id,
+                      author: {
+                        id: replyAuthorDetails.id,
+                        name:
+                          replyAuthorDetails.name ||
+                          reply.author?.username ||
+                          "User " + replyAuthorId,
+                        avatar:
+                          replyAuthorDetails.avatar ||
+                          reply.author?.avatar_url ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            replyAuthorDetails.name ||
+                              reply.author?.username ||
+                              "User " + replyAuthorId
+                          )}`,
+                        role:
+                          replyAuthorDetails.role ||
+                          reply.author?.role ||
+                          "user",
+                      },
+                      content: reply.content || "",
+                      timestamp: reply.created_at || new Date().toISOString(),
+                      reactions: reply.reactions || {},
+                    };
+                  })
+                : [],
+              attachments: Array.isArray(msg.attachments)
+                ? msg.attachments
+                : [],
+            };
+          });
 
           setMessages(formattedMessages);
         } catch (apiError) {
@@ -236,10 +319,11 @@ const ChatDiscussion = ({ forum }) => {
         setNewMessage("");
         setSelectedFile(null);
 
-        // Prepare the data for the API
+        // Prepare the data for the API - use the format expected by backend
         const messageData = {
           content: newMessage,
-          forum: forum.id, // Make sure this matches what your API expects
+          forum: forum.id, // Use forum instead of forum_id based on API docs
+          parent: null, // Adding this as it's expected by the API
         };
 
         console.log("Sending message data to API:", messageData);
@@ -248,6 +332,11 @@ const ChatDiscussion = ({ forum }) => {
         const createdMessage = await messageAPI.createMessage(messageData);
         console.log("API response:", createdMessage);
 
+        // Get author details - the API might return user ID instead of full author object
+        const authorId =
+          createdMessage.user || createdMessage.author?.id || currentUser?.id;
+        const authorDetails = getUserDetails(authorId, userMap);
+
         // Replace the temporary message with the real one from API
         setMessages((prevMessages) =>
           prevMessages.map((msg) =>
@@ -255,23 +344,10 @@ const ChatDiscussion = ({ forum }) => {
               ? {
                   id: createdMessage.id,
                   author: {
-                    id: createdMessage.author?.id || currentUser?.id || 0,
-                    name:
-                      createdMessage.author?.username ||
-                      createdMessage.author?.name ||
-                      currentUser?.name ||
-                      "Unknown",
-                    avatar:
-                      createdMessage.author?.avatar_url ||
-                      (currentUser?.name
-                        ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            currentUser.name
-                          )}`
-                        : "https://ui-avatars.com/api/?name=Unknown"),
-                    role:
-                      createdMessage.author?.role ||
-                      currentUser?.role ||
-                      "user",
+                    id: authorId,
+                    name: authorDetails.name,
+                    avatar: authorDetails.avatar,
+                    role: authorDetails.role || "user",
                   },
                   content: createdMessage.content || newMessage,
                   timestamp:
@@ -285,6 +361,19 @@ const ChatDiscussion = ({ forum }) => {
               : msg
           )
         );
+
+        // Add this user to the userMap for future reference
+        if (authorId) {
+          setUserMap((prevMap) => ({
+            ...prevMap,
+            [authorId]: {
+              id: authorId,
+              name: authorDetails.name,
+              avatar: authorDetails.avatar,
+              role: authorDetails.role,
+            },
+          }));
+        }
       } catch (err) {
         console.error("Error creating message:", err);
         alert("Failed to send message. Please try again.");
@@ -301,24 +390,31 @@ const ChatDiscussion = ({ forum }) => {
     if (!replyText.trim() || isLocked) return;
 
     try {
-      // Prepare reply data
+      // Prepare reply data based on API requirements
       const replyData = {
         content: replyText,
-        parent_message: messageId,
+        parent: messageId, // Use parent instead of parent_message based on API structure
         forum: forum.id,
       };
 
+      console.log("Sending reply data to API:", replyData);
+
       // Send to API
       const createdReply = await messageAPI.createMessage(replyData);
+
+      // Get author details - the API might return user ID instead of full author object
+      const authorId =
+        createdReply.user || createdReply.author?.id || currentUser?.id;
+      const authorDetails = getUserDetails(authorId, userMap);
 
       // Format the reply data
       const formattedReply = {
         id: createdReply.id,
         author: {
-          id: createdReply.author?.id || currentUser?.id,
-          name: createdReply.author?.username || currentUser?.name,
-          avatar: createdReply.author?.avatar_url || currentUser?.avatar,
-          role: createdReply.author?.role || "user",
+          id: authorId,
+          name: authorDetails.name,
+          avatar: authorDetails.avatar,
+          role: authorDetails.role || "user",
         },
         content: createdReply.content,
         timestamp: createdReply.created_at || new Date().toISOString(),
@@ -337,6 +433,19 @@ const ChatDiscussion = ({ forum }) => {
           return message;
         })
       );
+
+      // Add this user to the userMap for future reference
+      if (authorId) {
+        setUserMap((prevMap) => ({
+          ...prevMap,
+          [authorId]: {
+            id: authorId,
+            name: authorDetails.name,
+            avatar: authorDetails.avatar,
+            role: authorDetails.role,
+          },
+        }));
+      }
     } catch (err) {
       console.error("Error creating reply:", err);
       alert("Failed to send reply. Please try again.");
