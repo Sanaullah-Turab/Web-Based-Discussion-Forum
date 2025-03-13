@@ -1,57 +1,91 @@
-import PropTypes from 'prop-types';
-import { useState } from 'react';
+import PropTypes from "prop-types";
+import { useState, useEffect } from "react";
 
 const DUMMY_USERS = [
-  { id: 1, name: 'Ali123', avatar: 'https://i.pravatar.cc/150?img=1', role: 'admin' },
-  { id: 2, name: 'sara_dev', avatar: 'https://i.pravatar.cc/150?img=5', role: 'moderator' },
-  { id: 3, name: 'new_coder', avatar: 'https://i.pravatar.cc/150?img=3', role: 'user' },
-  { id: 4, name: 'learning_js', avatar: 'https://i.pravatar.cc/150?img=4', role: 'user' },
+  {
+    id: 1,
+    name: "Ali123",
+    avatar: "https://i.pravatar.cc/150?img=1",
+    role: "admin",
+  },
+  {
+    id: 2,
+    name: "sara_dev",
+    avatar: "https://i.pravatar.cc/150?img=5",
+    role: "moderator",
+  },
+  {
+    id: 3,
+    name: "new_coder",
+    avatar: "https://i.pravatar.cc/150?img=3",
+    role: "user",
+  },
+  {
+    id: 4,
+    name: "learning_js",
+    avatar: "https://i.pravatar.cc/150?img=4",
+    role: "user",
+  },
 ];
 
-const ChatMessage = ({ 
-  message, 
-  onReply, 
-  onDelete, 
+const ChatMessage = ({
+  message,
+  onReply,
+  onDelete,
   onPin,
   onEdit,
   onReaction,
   onReplyReaction,
   onBanUser,
   onUnbanUser,
-  isCreator, 
+  isCreator,
   canModerate,
   isLocked,
   isEditing,
   setEditing,
   availableReactions,
   bannedUsers,
+  currentUser, // Add this prop
 }) => {
+  // Add safety check at the beginning
+  if (!message || !message.author) {
+    console.error("Invalid message data:", message);
+    return <div className="p-3 text-gray-400">Message unavailable</div>;
+  }
+
   const [showMentions, setShowMentions] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
-  const [replyText, setReplyText] = useState('');
-  const [editText, setEditText] = useState(message.content);
+  const [mentionSearch, setMentionSearch] = useState("");
+  const [replyText, setReplyText] = useState("");
+  const [editText, setEditText] = useState(message.content || "");
   const [cursorPosition, setCursorPosition] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [showBanConfirm, setShowBanConfirm] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
 
+  // Update editText when message changes
+  useEffect(() => {
+    if (message?.content) {
+      setEditText(message.content);
+    }
+  }, [message?.content]);
+
   const handleInputChange = (e, isEdit = false) => {
     const text = e.target.value;
     const position = e.target.selectionStart;
-    
+
     if (isEdit) {
       setEditText(text);
     } else {
       setReplyText(text);
     }
-    
+
     setCursorPosition(position);
 
-    const lastAtSymbol = text.lastIndexOf('@', position);
+    const lastAtSymbol = text.lastIndexOf("@", position);
     if (lastAtSymbol !== -1) {
       const afterAtSymbol = text.slice(lastAtSymbol + 1, position);
-      if (!afterAtSymbol.includes(' ')) {
+      if (!afterAtSymbol.includes(" ")) {
         setMentionSearch(afterAtSymbol.toLowerCase());
         setShowMentions(true);
         return;
@@ -62,34 +96,36 @@ const ChatMessage = ({
 
   const handleMentionClick = (user, isEdit = false) => {
     const text = isEdit ? editText : replyText;
-    const textBeforeMention = text.slice(0, text.lastIndexOf('@'));
+    const textBeforeMention = text.slice(0, text.lastIndexOf("@"));
     const textAfterMention = text.slice(cursorPosition);
     const newText = `${textBeforeMention}@${user.name} ${textAfterMention}`;
-    
+
     if (isEdit) {
       setEditText(newText);
     } else {
       setReplyText(newText);
     }
-    
+
     setShowMentions(false);
   };
 
   const handleSaveEdit = () => {
-    if (editText.trim()) {
+    if (editText && editText.trim()) {
       onEdit(editText);
       setEditing(false);
     }
   };
 
-  const filteredUsers = DUMMY_USERS.filter(user =>
-    user.name.toLowerCase().includes(mentionSearch)
+  const filteredUsers = DUMMY_USERS.filter((user) =>
+    user.name.toLowerCase().includes(mentionSearch.toLowerCase())
   );
 
   const formatMessageWithMentions = (text) => {
+    if (!text) return ""; // Safety check
+
     const parts = text.split(/(@\w+)/g);
     return parts.map((part, index) => {
-      if (part.startsWith('@')) {
+      if (part.startsWith("@")) {
         return (
           <span key={index} className="text-blue-600 font-medium">
             {part}
@@ -101,14 +137,16 @@ const ChatMessage = ({
   };
 
   const formatText = (text) => {
+    if (!text) return ""; // Safety check
+
     let formattedText = text;
     if (message.formatting?.bold) {
-      message.formatting.bold.forEach(bold => {
+      message.formatting.bold.forEach((bold) => {
         formattedText = formattedText.replace(bold, `**${bold}**`);
       });
     }
     if (message.formatting?.italic) {
-      message.formatting.italic.forEach(italic => {
+      message.formatting.italic.forEach((italic) => {
         formattedText = formattedText.replace(italic, `_${italic}_`);
       });
     }
@@ -116,33 +154,54 @@ const ChatMessage = ({
   };
 
   const renderAttachment = (attachment) => {
-    const isImage = ['.jpg', '.png'].some(ext => attachment.name.toLowerCase().endsWith(ext));
+    if (!attachment || !attachment.name) return null; // Safety check
+
+    const isImage = [".jpg", ".png"].some((ext) =>
+      attachment.name.toLowerCase().endsWith(ext)
+    );
     return (
-      <div key={attachment.name} className="mt-2 p-2 bg-gray-50 rounded-lg flex items-center gap-2">
-        <span>{isImage ? '🖼️' : '📎'}</span>
+      <div
+        key={attachment.name}
+        className="mt-2 p-2 bg-gray-50 rounded-lg flex items-center gap-2"
+      >
+        <span>{isImage ? "🖼️" : "📎"}</span>
         <span className="text-sm text-gray-600">{attachment.name}</span>
-        <span className="text-xs text-gray-400">({Math.round(attachment.size / 1024)}KB)</span>
+        <span className="text-xs text-gray-400">
+          ({Math.round((attachment.size || 0) / 1024)}KB)
+        </span>
       </div>
     );
   };
 
-  const isBanned = bannedUsers.includes(message.author.id);
+  // Use current user ID if available, otherwise fallback to dummy user
+  const userId = currentUser?.id || DUMMY_USERS[0].id;
+
+  // Safe check for bannedUsers
+  const isBanned =
+    Array.isArray(bannedUsers) &&
+    message.author?.id !== undefined &&
+    bannedUsers.includes(message.author.id);
 
   return (
-    <div className={`relative ${isBanned ? 'opacity-50' : ''}`}>
+    <div className={`relative ${isBanned ? "opacity-50" : ""}`}>
       <div className="flex gap-3">
         <div className="flex-shrink-0">
-          <img 
-            src={message.author.avatar} 
-            alt={message.author.name} 
+          <img
+            src={
+              message.author?.avatar ||
+              "https://ui-avatars.com/api/?name=Unknown"
+            }
+            alt={message.author?.name || "Unknown"}
             className="w-8 h-8 rounded-full object-cover"
           />
         </div>
         <div className="flex-grow min-w-0">
           <div className="flex flex-wrap items-start gap-2">
-            <span className="font-medium text-sm">{message.author.name}</span>
+            <span className="font-medium text-sm">
+              {message.author?.name || "Unknown"}
+            </span>
             <span className="text-xs text-gray-500">
-              {new Date(message.timestamp).toLocaleString()}
+              {new Date(message.timestamp || Date.now()).toLocaleString()}
             </span>
             {message.isPinned && (
               <span className="text-xs text-yellow-600">📌 Pinned</span>
@@ -180,16 +239,17 @@ const ChatMessage = ({
           ) : (
             <>
               <div className="mt-1 text-sm break-words">
-                {formatMessageWithMentions(formatText(message.content))}
+                {formatMessageWithMentions(formatText(message.content || ""))}
               </div>
 
               {message.attachments?.map((file, index) => (
                 <div key={index} className="mt-2 flex items-center gap-2">
                   <span className="text-sm">
-                    {file.type.startsWith('image/') ? '🖼️' : '📎'} {file.name}
+                    {file.type && file.type.startsWith("image/") ? "🖼️" : "📎"}{" "}
+                    {file.name || "File"}
                   </span>
                   <span className="text-xs text-gray-500">
-                    ({Math.round(file.size / 1024)}KB)
+                    ({Math.round((file.size || 0) / 1024)}KB)
                   </span>
                 </div>
               ))}
@@ -199,14 +259,17 @@ const ChatMessage = ({
                   onClick={() => setShowReactions(!showReactions)}
                   className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
                 >
-                  😊 React {Object.keys(message.reactions || {}).length > 0 && `(${
-                    Object.values(message.reactions).reduce((sum, arr) => sum + arr.length, 0)
-                  })`}
+                  😊 React{" "}
+                  {Object.keys(message.reactions || {}).length > 0 &&
+                    `(${Object.values(message.reactions || {}).reduce(
+                      (sum, arr) => sum + (arr?.length || 0),
+                      0
+                    )})`}
                 </button>
-                
+
                 {showReactions && (
                   <div className="absolute left-0 mt-1 p-1 bg-white rounded-lg shadow-lg border border-gray-200 flex flex-wrap gap-1 z-10">
-                    {availableReactions.map(reaction => (
+                    {(availableReactions || []).map((reaction) => (
                       <button
                         key={reaction}
                         onClick={() => {
@@ -214,9 +277,9 @@ const ChatMessage = ({
                           setShowReactions(false);
                         }}
                         className={`px-2 py-0.5 text-sm rounded-full ${
-                          message.reactions?.[reaction]?.includes(DUMMY_USERS[0].id)
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          message.reactions?.[reaction]?.includes(userId)
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                       >
                         {reaction} {message.reactions?.[reaction]?.length || 0}
@@ -226,41 +289,52 @@ const ChatMessage = ({
                 )}
               </div>
 
-              {message.replies?.map(reply => (
-                <div key={reply.id} className="mt-3 pl-3 border-l-2 border-gray-100">
+              {message.replies?.map((reply) => (
+                <div
+                  key={reply?.id || Math.random()}
+                  className="mt-3 pl-3 border-l-2 border-gray-100"
+                >
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{reply.author.name}</span>
+                    <span className="text-sm font-medium">
+                      {reply?.author?.name || "Unknown"}
+                    </span>
                     <span className="text-xs text-gray-500">
-                      {new Date(reply.timestamp).toLocaleString()}
+                      {new Date(
+                        reply?.timestamp || Date.now()
+                      ).toLocaleString()}
                     </span>
                   </div>
-                  <div className="mt-1 text-sm">{reply.content}</div>
+                  <div className="mt-1 text-sm">{reply?.content || ""}</div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     <button
                       onClick={() => setShowReactions(!showReactions)}
                       className="px-1.5 py-0.5 text-xs rounded-full bg-gray-50 text-gray-700 hover:bg-gray-100 flex items-center gap-1"
                     >
-                      😊 React {Object.keys(reply.reactions || {}).length > 0 && `(${
-                        Object.values(reply.reactions).reduce((sum, arr) => sum + arr.length, 0)
-                      })`}
+                      😊 React{" "}
+                      {Object.keys(reply?.reactions || {}).length > 0 &&
+                        `(${Object.values(reply?.reactions || {}).reduce(
+                          (sum, arr) => sum + (arr?.length || 0),
+                          0
+                        )})`}
                     </button>
-                    
+
                     {showReactions && (
                       <div className="absolute left-0 mt-1 p-1 bg-white rounded-lg shadow-lg border border-gray-200 flex flex-wrap gap-1 z-10">
-                        {availableReactions.map(reaction => (
+                        {(availableReactions || []).map((reaction) => (
                           <button
                             key={reaction}
                             onClick={() => {
-                              onReplyReaction(reaction, reply.id);
+                              onReplyReaction(reaction, reply?.id);
                               setShowReactions(false);
                             }}
                             className={`px-1.5 py-0.5 text-xs rounded-full ${
-                              reply.reactions?.[reaction]?.includes(DUMMY_USERS[0].id)
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                              reply?.reactions?.[reaction]?.includes(userId)
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                             }`}
                           >
-                            {reaction} {reply.reactions?.[reaction]?.length || 0}
+                            {reaction}{" "}
+                            {reply?.reactions?.[reaction]?.length || 0}
                           </button>
                         ))}
                       </div>
@@ -296,7 +370,7 @@ const ChatMessage = ({
                   onClick={() => {
                     if (replyText.trim()) {
                       onReply(replyText);
-                      setReplyText('');
+                      setReplyText("");
                       setShowReplyInput(false);
                     }
                   }}
@@ -307,7 +381,7 @@ const ChatMessage = ({
                 <button
                   onClick={() => {
                     setShowReplyInput(false);
-                    setReplyText('');
+                    setReplyText("");
                   }}
                   className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                 >
@@ -331,10 +405,10 @@ const ChatMessage = ({
               onClick={() => onPin(message.id)}
               className={`p-1 rounded ${
                 message.isPinned
-                  ? 'text-yellow-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                  ? "text-yellow-600"
+                  : "text-gray-400 hover:text-gray-600"
               }`}
-              title={message.isPinned ? 'Unpin message' : 'Pin message'}
+              title={message.isPinned ? "Unpin message" : "Pin message"}
             >
               📌
             </button>
@@ -348,9 +422,9 @@ const ChatMessage = ({
             <button
               onClick={() => setShowBanConfirm(true)}
               className="p-1 text-gray-400 hover:text-gray-600 rounded"
-              title={isBanned ? 'Unban user' : 'Ban user'}
+              title={isBanned ? "Unban user" : "Ban user"}
             >
-              {isBanned ? '🔓' : '🔒'}
+              {isBanned ? "🔓" : "🔒"}
             </button>
           </div>
         )}
@@ -379,15 +453,19 @@ const ChatMessage = ({
         </div>
       )}
 
-      {showBanConfirm && (
+      {showBanConfirm && message.author?.id && (
         <div className="absolute right-0 top-0 p-2 bg-white rounded-lg shadow-lg border border-gray-200">
           <p className="text-xs mb-2">
-            {isBanned ? 'Unban this user?' : 'Ban this user?'}
+            {isBanned ? "Unban this user?" : "Ban this user?"}
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => {
-                isBanned ? onUnbanUser(message.author.id) : onBanUser(message.author.id);
+                if (message.author?.id) {
+                  isBanned
+                    ? onUnbanUser(message.author.id)
+                    : onBanUser(message.author.id);
+                }
                 setShowBanConfirm(false);
               }}
               className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
@@ -409,22 +487,23 @@ const ChatMessage = ({
 
 ChatMessage.propTypes = {
   message: PropTypes.shape({
-    id: PropTypes.number.isRequired,
+    id: PropTypes.number,
     author: PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      name: PropTypes.string.isRequired,
-      avatar: PropTypes.string.isRequired,
-      role: PropTypes.string.isRequired,
-    }).isRequired,
-    content: PropTypes.string.isRequired,
-    timestamp: PropTypes.string.isRequired,
-    isPinned: PropTypes.bool.isRequired,
+      id: PropTypes.number,
+      name: PropTypes.string,
+      avatar: PropTypes.string,
+      role: PropTypes.string,
+    }),
+    content: PropTypes.string,
+    timestamp: PropTypes.string,
+    isPinned: PropTypes.bool,
     isEdited: PropTypes.bool,
-    reactions: PropTypes.object.isRequired,
+    reactions: PropTypes.object,
     attachments: PropTypes.arrayOf(
       PropTypes.shape({
-        name: PropTypes.string.isRequired,
-        size: PropTypes.number.isRequired,
+        name: PropTypes.string,
+        size: PropTypes.number,
+        type: PropTypes.string,
       })
     ),
     formatting: PropTypes.shape({
@@ -433,20 +512,20 @@ ChatMessage.propTypes = {
     }),
     replies: PropTypes.arrayOf(
       PropTypes.shape({
-        id: PropTypes.number.isRequired,
+        id: PropTypes.number,
         author: PropTypes.shape({
-          id: PropTypes.number.isRequired,
-          name: PropTypes.string.isRequired,
-          avatar: PropTypes.string.isRequired,
-          role: PropTypes.string.isRequired,
-        }).isRequired,
-        content: PropTypes.string.isRequired,
-        timestamp: PropTypes.string.isRequired,
-        reactions: PropTypes.object.isRequired,
+          id: PropTypes.number,
+          name: PropTypes.string,
+          avatar: PropTypes.string,
+          role: PropTypes.string,
+        }),
+        content: PropTypes.string,
+        timestamp: PropTypes.string,
+        reactions: PropTypes.object,
         attachments: PropTypes.arrayOf(
           PropTypes.shape({
-            name: PropTypes.string.isRequired,
-            size: PropTypes.number.isRequired,
+            name: PropTypes.string,
+            size: PropTypes.number,
           })
         ),
         formatting: PropTypes.shape({
@@ -455,22 +534,69 @@ ChatMessage.propTypes = {
         }),
       })
     ),
-  }).isRequired,
-  onReply: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired,
-  onPin: PropTypes.func.isRequired,
-  onEdit: PropTypes.func.isRequired,
-  onReaction: PropTypes.func.isRequired,
-  onReplyReaction: PropTypes.func.isRequired,
-  onBanUser: PropTypes.func.isRequired,
-  onUnbanUser: PropTypes.func.isRequired,
-  isCreator: PropTypes.bool.isRequired,
-  canModerate: PropTypes.bool.isRequired,
-  isLocked: PropTypes.bool.isRequired,
-  isEditing: PropTypes.bool.isRequired,
-  setEditing: PropTypes.func.isRequired,
-  availableReactions: PropTypes.arrayOf(PropTypes.string).isRequired,
-  bannedUsers: PropTypes.arrayOf(PropTypes.number).isRequired,
+  }),
+  onReply: PropTypes.func,
+  onDelete: PropTypes.func,
+  onPin: PropTypes.func,
+  onEdit: PropTypes.func,
+  onReaction: PropTypes.func,
+  onReplyReaction: PropTypes.func,
+  onBanUser: PropTypes.func,
+  onUnbanUser: PropTypes.func,
+  isCreator: PropTypes.bool,
+  canModerate: PropTypes.bool,
+  isLocked: PropTypes.bool,
+  isEditing: PropTypes.bool,
+  setEditing: PropTypes.func,
+  availableReactions: PropTypes.arrayOf(PropTypes.string),
+  bannedUsers: PropTypes.arrayOf(PropTypes.number),
+  currentUser: PropTypes.shape({
+    id: PropTypes.number,
+    name: PropTypes.string,
+    avatar: PropTypes.string,
+    role: PropTypes.string,
+  }),
 };
 
-export default ChatMessage; 
+// Add these default props to handle missing or incomplete data
+ChatMessage.defaultProps = {
+  message: {
+    id: 0,
+    author: {
+      id: 0,
+      name: "Unknown",
+      avatar: "https://ui-avatars.com/api/?name=Unknown",
+      role: "user",
+    },
+    content: "",
+    timestamp: new Date().toISOString(),
+    isPinned: false,
+    isEdited: false,
+    reactions: {},
+    attachments: [],
+    replies: [],
+  },
+  onReply: () => {},
+  onDelete: () => {},
+  onPin: () => {},
+  onEdit: () => {},
+  onReaction: () => {},
+  onReplyReaction: () => {},
+  onBanUser: () => {},
+  onUnbanUser: () => {},
+  isCreator: false,
+  canModerate: false,
+  isLocked: false,
+  isEditing: false,
+  setEditing: () => {},
+  availableReactions: [],
+  bannedUsers: [],
+  currentUser: {
+    id: 0,
+    name: "Current User",
+    avatar: "https://ui-avatars.com/api/?name=Current+User",
+    role: "user",
+  },
+};
+
+export default ChatMessage;
