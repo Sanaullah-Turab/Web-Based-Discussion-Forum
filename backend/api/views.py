@@ -75,3 +75,84 @@ class ForumViewSet(viewsets.ModelViewSet):
         # Instead of hard deletion, mark the forum as deleted.
         instance.is_deleted = True
         instance.save()
+        
+class ForumMembershipViewSet(viewsets.ModelViewSet):
+    """
+    A viewset that provides the standard actions for ForumMembership:
+    create, retrieve, update, partial_update, and destroy.
+    """
+    serializer_class = ForumMembershipSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        """
+        Optionally filter by forum_id or user_id
+        """
+        
+        queryset = ForumMembership.objects.all()
+        user_id = self.request.query_params.get('user_id')
+        forum_id = self.request.query_params.get('forum_id')
+        
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+            
+        if forum_id:
+            queryset = queryset.filter(forum_id=forum_id)
+            
+        return queryset
+    
+    def perform_create(self, serializer):
+        """
+        Ensure the user creating membership is assigned correctly
+        """
+        serializer.save(user = self.request.user)
+        
+class MessageViewSet(viewsets.ModelViewSet):
+    """
+    A viewsets that provides the standard actions for Message:
+    create, retrieve, update, partial_update, and destroy.
+    """
+    
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        queryset = Message.objects.all()
+        user_id = self.request.query_params.get('user_id')
+        forum_id = self.request.query_params.get('forum_id')
+        mentioned_user_id = self.request.query_params.get('mentioned_user_id')
+        if mentioned_user_id:
+            queryset = queryset.filter(mentions__mentioned_user_id=mentioned_user_id)
+        
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        if forum_id:
+            queryset = queryset.filter(forum_id=forum_id)
+            
+        return queryset.order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        serializer.save(user = self.request.user)
+        
+class MessageMentionViewSet(viewsets.ModelViewSet):
+    """
+    A viewset that provides the standard actions for MessageMention:
+    create, retrieve, update, partial_update, and destroy.
+    """
+    serializer_class = MessageMentionSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    
+    def get_queryset(self):
+        queryset = MessageMention.objects.all()
+        # user_id = self.request.query_params.get('user_id')
+        message_id = self.request.query_params.get('message_id')
+        
+        # if user_id:
+        #     queryset = queryset.filter(mentioned_user_id=user_id)
+        
+        queryset = queryset.filter(mentioned_user=self.request.user)
+        if message_id:
+            queryset = queryset.filter(message_id=message_id)
+            
+        return queryset

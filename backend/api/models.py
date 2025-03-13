@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+import re
 
 # Categories for forums (e.g., Technology, Science)
 class Category(models.Model):
@@ -29,6 +30,9 @@ class Forum(models.Model):
 
     def __str__(self):
         return self.name
+    
+    
+        
 
 # Many-to-many relationship: Users joining Forums
 class ForumMembership(models.Model):
@@ -50,6 +54,22 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message by {self.user} in {self.forum}"
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.extract_mentions()
+        
+    def extract_mentions(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        mentioned_usernames = re.findall(r'@(\w+)', self.content)
+        for username in mentioned_usernames:
+            try:
+                user = User.objects.get(name=username)
+                MessageMention.objects.create(message=self, mentioned_user=user)
+            except User.DoesNotExist:
+                pass
 
 # Optional: Track when users are mentioned in messages
 class MessageMention(models.Model):

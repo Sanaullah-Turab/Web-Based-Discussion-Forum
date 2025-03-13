@@ -15,13 +15,6 @@ class TagSerializer(serializers.ModelSerializer):
         model = models.Tag
         fields = '__all__'
         
-# class ForumSerializer(serializers.ModelSerializer):
-#     # created_by = NestedUserSerializer(read_only=True)
-#     class Meta:
-#         model = models.Forum
-#         fields = '__all__'
-#         read_only_fields = ('created_by', 'created_at', 'updated_at')
-#         depth = 1
 class ForumSerializer(serializers.ModelSerializer):
     # Read-only nested representations
     category_detail = CategorySerializer(source='category', read_only=True)
@@ -56,14 +49,18 @@ class ForumSerializer(serializers.ModelSerializer):
 
     
 class ForumMembershipSerializer(serializers.ModelSerializer):
+    
+    user = NestedUserSerializer(read_only=True)
     class Meta:
         model = models.ForumMembership
         fields = '__all__'
+        read_only_fields = ['joined_at', 'user']
         
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Message
         fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at', 'user']
         
 class MessageMentionSerializer(serializers.ModelSerializer):
     class Meta:
