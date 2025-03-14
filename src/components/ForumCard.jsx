@@ -1,68 +1,182 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { forumMembershipAPI } from "../services/forum";
 
-const ForumCard = ({ forum }) => {
+const ForumCard = ({ forum, onDelete, currentUser }) => {
+  const [isMember, setIsMember] = useState(false);
+  const [membershipId, setMembershipId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // Format dates
+  const createdDate = new Date(
+    forum.created_at || new Date()
+  ).toLocaleDateString();
+  const lastActivityDate = new Date(
+    forum.updated_at || forum.created_at || new Date()
+  );
+
+  const timeAgo = () => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - lastActivityDate) / 1000);
+
+    if (diffInSeconds < 60) return "just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800)
+      return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return `${Math.floor(diffInSeconds / 604800)}w ago`;
+  };
+
+  // Check if user is a forum member
+  useEffect(() => {
+    const checkMembership = async () => {
+      if (!currentUser) return;
+
+      try {
+        setLoading(true);
+        const memberships = await forumMembershipAPI.getMemberships({
+          user_id: currentUser.id,
+          forum_id: forum.id,
+        });
+
+        if (memberships && memberships.length > 0) {
+          setIsMember(true);
+          setMembershipId(memberships[0].id);
+        }
+      } catch (error) {
+        console.error("Error checking forum membership:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (currentUser && forum.id) {
+      checkMembership();
+    }
+  }, [currentUser, forum.id]);
+
+  const handleToggleMembership = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!currentUser) {
+      alert("You must be logged in to join a forum");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (isMember && membershipId) {
+        // Leave the forum
+        await forumMembershipAPI.leaveForum(membershipId);
+        setIsMember(false);
+        setMembershipId(null);
+      } else {
+        // Join the forum
+        const result = await forumMembershipAPI.joinForum(forum.id);
+        setIsMember(true);
+        setMembershipId(result.id);
+      }
+    } catch (error) {
+      console.error("Error toggling forum membership:", error);
+      alert(
+        `Failed to ${isMember ? "leave" : "join"} forum. Please try again.`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (onDelete) {
+      onDelete(forum.id);
+    }
+  };
+
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-      <div className="flex justify-between items-start">
-        <div className="space-y-2">
-          <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">
-            {forum.title}
-          </h3>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-full">
-              {forum.category}
-            </span>
-            <span className="text-sm text-gray-500">
-              Created {new Date(forum.lastActivity).toLocaleDateString()}
-            </span>
+    <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 border border-gray-100 overflow-hidden">
+      <div className="p-5">
+        <div className="flex justify-between items-start mb-3">
+          <Link
+            to={`/forums/${forum.id}`}
+            className="text-xl font-semibold text-blue-600 hover:text-blue-800 mb-1 flex-1"
+          >
+            {forum.name}
+          </Link>
+          <div className="flex space-x-2">
+            {!loading && currentUser && (
+              <button
+                onClick={handleToggleMembership}
+                className={`text-sm px-3 py-1 rounded-full ${
+                  isMember
+                    ? "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                    : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                }`}
+              >
+                {isMember ? "Joined" : "Join"}
+              </button>
+            )}
+            {currentUser &&
+              (currentUser.id === forum.created_by?.id ||
+                currentUser.role === "admin") && (
+                <button
+                  onClick={handleDelete}
+                  className="text-sm px-3 py-1 rounded-full bg-red-50 hover:bg-red-100 text-red-600"
+                >
+                  Delete
+                </button>
+              )}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-gray-50 px-3 py-1 rounded-full">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700">{forum.messageCount}</span>
-            </div>
-            <div className="flex items-center gap-1 bg-gray-50 px-3 py-1 rounded-full">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700">{forum.replyCount}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-sm text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>
-              {new Date(forum.lastActivity).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
+        <p className="text-gray-600 mb-4 line-clamp-2">{forum.description}</p>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          {forum.category_detail && (
+            <span className="px-2 py-1 bg-blue-50 text-xs font-medium text-blue-700 rounded-full">
+              {forum.category_detail.name}
             </span>
+          )}
+          {forum.is_locked && (
+            <span className="px-2 py-1 bg-red-50 text-xs font-medium text-red-700 rounded-full flex items-center">
+              <svg
+                className="w-3 h-3 mr-1"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+              Locked
+            </span>
+          )}
+        </div>
+
+        <div className="flex justify-between items-center text-sm text-gray-500">
+          <div className="flex space-x-4">
+            <span>{forum.messages_count || 0} messages</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-xs">Created {createdDate}</span>
+            <span className="text-xs">Last activity {timeAgo()}</span>
           </div>
         </div>
-      </div>
-      <div className="mt-4 flex justify-between items-center">
-        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 transition-colors">
-          View Discussion
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-        <div className="flex items-center gap-2">
-          <button className="text-gray-500 hover:text-blue-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-          </button>
-          <button className="text-gray-500 hover:text-blue-600 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-          </button>
+
+        <div className="mt-4">
+          <Link
+            to={`/forums/${forum.id}`}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 inline-block"
+          >
+            Join Discussion
+          </Link>
         </div>
       </div>
     </div>
@@ -72,12 +186,23 @@ const ForumCard = ({ forum }) => {
 ForumCard.propTypes = {
   forum: PropTypes.shape({
     id: PropTypes.number.isRequired,
-    title: PropTypes.string.isRequired,
-    category: PropTypes.string.isRequired,
-    messageCount: PropTypes.number.isRequired,
-    replyCount: PropTypes.number.isRequired,
-    lastActivity: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    created_at: PropTypes.string,
+    updated_at: PropTypes.string,
+    is_locked: PropTypes.bool,
+    messages_count: PropTypes.number,
+    category_detail: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+    }),
+    created_by: PropTypes.shape({
+      id: PropTypes.number,
+      name: PropTypes.string,
+    }),
   }).isRequired,
+  onDelete: PropTypes.func,
+  currentUser: PropTypes.object,
 };
 
-export default ForumCard; 
+export default ForumCard;

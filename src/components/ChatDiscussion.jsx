@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import ChatMessage from "./ChatMessage";
+import { useParams, useNavigate } from "react-router-dom";
 
 // Import the API services
-import { messageAPI, forumAPI } from "../services/discussionApi";
+import { messageAPI, forumAPI } from "../services/forum";
 
 const REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
 const ALLOWED_FILE_TYPES = [".pdf", ".jpg", ".png", ".zip"];
@@ -36,14 +37,17 @@ const DUMMY_USERS = [
   },
 ];
 
-const ChatDiscussion = ({ forum }) => {
+const ChatDiscussion = ({ forum: forumProp }) => {
+  const { forumId } = useParams();
+  const navigate = useNavigate();
+  const [forum, setForum] = useState(forumProp);
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [cursorPosition, setCursorPosition] = useState(0);
-  const [isLocked, setIsLocked] = useState(forum.is_locked || false);
+  const [isLocked, setIsLocked] = useState(forumProp?.is_locked || false);
   const [editingMessage, setEditingMessage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [bannedUsers, setBannedUsers] = useState([]);
@@ -52,6 +56,7 @@ const ChatDiscussion = ({ forum }) => {
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [userMap, setUserMap] = useState({});
+  const messagesEndRef = useRef(null);
 
   // Helper function to get user details from ID
   const getUserDetails = (userId, usersMap = {}) => {
@@ -80,161 +85,238 @@ const ChatDiscussion = ({ forum }) => {
     };
   };
 
-  // Fetch messages when the component mounts or forum changes
+  // First, get the current user
   useEffect(() => {
-    const fetchMessages = async () => {
-      setLoading(true);
-      setLoadingMessages(true);
-      try {
-        // Initialize user data
-        setUsers(DUMMY_USERS);
-
-        // Get current user from localStorage
-        const userJson = localStorage.getItem("user");
-        let currentUserData;
-        if (userJson) {
-          currentUserData = JSON.parse(userJson);
-          setCurrentUser(currentUserData);
-        } else {
-          // For testing, set a dummy current user
-          currentUserData = DUMMY_USERS[0];
-          setCurrentUser(currentUserData);
-        }
-
-        // Create a map of users for quick lookup
-        const newUserMap = {};
-
-        // Add current user to the map
-        if (currentUserData) {
-          newUserMap[currentUserData.id] = {
-            id: currentUserData.id,
-            name: currentUserData.name,
-            avatar: currentUserData.avatar,
-            role: currentUserData.role,
-          };
-        }
-
-        // Add dummy users to the map
-        DUMMY_USERS.forEach((user) => {
-          newUserMap[user.id] = user;
-        });
-
-        setUserMap(newUserMap);
-
-        // Fetch messages from API
+    const getUserFromLocalStorage = () => {
+      const userJson = localStorage.getItem("user");
+      if (userJson) {
         try {
-          console.log("Fetching messages for forum:", forum.id);
-          const fetchedMessages = await messageAPI.getMessages({
-            forum_id: forum.id,
-          });
-
-          console.log("Fetched messages:", fetchedMessages);
-
-          // Format messages with proper user details
-          const formattedMessages = fetchedMessages.map((msg) => {
-            // Extract user info from the message or userMap
-            const authorId = msg.user || msg.author?.id;
-            const authorDetails = getUserDetails(authorId, newUserMap);
-
-            return {
-              id: msg.id,
-              author: {
-                id: authorDetails.id,
-                name:
-                  authorDetails.name ||
-                  msg.author?.username ||
-                  "User " + authorId,
-                avatar:
-                  authorDetails.avatar ||
-                  msg.author?.avatar_url ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    authorDetails.name ||
-                      msg.author?.username ||
-                      "User " + authorId
-                  )}`,
-                role: authorDetails.role || msg.author?.role || "user",
-              },
-              content: msg.content || "",
-              timestamp: msg.created_at || new Date().toISOString(),
-              isPinned: Boolean(msg.is_pinned),
-              isEdited: Boolean(msg.is_edited),
-              reactions: msg.reactions || {},
-              replies: Array.isArray(msg.replies)
-                ? msg.replies.map((reply) => {
-                    const replyAuthorId = reply.user || reply.author?.id;
-                    const replyAuthorDetails = getUserDetails(
-                      replyAuthorId,
-                      newUserMap
-                    );
-
-                    return {
-                      id: reply.id,
-                      author: {
-                        id: replyAuthorDetails.id,
-                        name:
-                          replyAuthorDetails.name ||
-                          reply.author?.username ||
-                          "User " + replyAuthorId,
-                        avatar:
-                          replyAuthorDetails.avatar ||
-                          reply.author?.avatar_url ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            replyAuthorDetails.name ||
-                              reply.author?.username ||
-                              "User " + replyAuthorId
-                          )}`,
-                        role:
-                          replyAuthorDetails.role ||
-                          reply.author?.role ||
-                          "user",
-                      },
-                      content: reply.content || "",
-                      timestamp: reply.created_at || new Date().toISOString(),
-                      reactions: reply.reactions || {},
-                    };
-                  })
-                : [],
-              attachments: Array.isArray(msg.attachments)
-                ? msg.attachments
-                : [],
-            };
-          });
-
-          setMessages(formattedMessages);
-        } catch (apiError) {
-          console.error("API error:", apiError);
-
-          // Use dummy data as fallback
-          const dummyMessages = [
-            {
-              id: 1,
-              author: DUMMY_USERS[0],
-              content: "Welcome to the discussion forum!",
-              timestamp: new Date().toISOString(),
-              isPinned: false,
-              isEdited: false,
-              reactions: {},
-              replies: [],
-              attachments: [],
-            },
-          ];
-
-          setMessages(dummyMessages);
+          const parsedUser = JSON.parse(userJson);
+          setCurrentUser(parsedUser);
+          console.log("Current user set from localStorage:", parsedUser);
+        } catch (err) {
+          console.error("Error parsing user from localStorage:", err);
         }
-
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching messages:", err);
-        setError("Failed to load messages. Please try again later.");
-        setMessages([]);
-      } finally {
-        setLoading(false);
-        setLoadingMessages(false);
       }
     };
 
-    fetchMessages();
-  }, [forum.id]);
+    getUserFromLocalStorage();
+  }, []);
+
+  // Second, fetch the forum if needed
+  useEffect(() => {
+    const fetchForum = async () => {
+      // If we have a valid forum prop, use it
+      if (forumProp && forumProp.id) {
+        setForum(forumProp);
+        setIsLocked(forumProp.is_locked || false);
+        return;
+      }
+
+      // If we have a forumId from URL but no forum prop, fetch it
+      if (forumId) {
+        try {
+          console.log(`Fetching forum with ID: ${forumId}`);
+          const fetchedForum = await forumAPI.getForum(Number(forumId));
+          console.log("Fetched forum:", fetchedForum);
+          setForum(fetchedForum);
+          setIsLocked(fetchedForum.is_locked || false);
+        } catch (err) {
+          console.error(`Error fetching forum ${forumId}:`, err);
+          alert("Forum not found. You will be redirected to the forums list.");
+          navigate("/forums");
+        }
+      }
+    };
+
+    fetchForum();
+  }, [forumProp, forumId, navigate]);
+
+  // Third, fetch messages when forum is available
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!forum || !forum.id) {
+        console.error("Cannot fetch messages: Forum information is missing");
+        return;
+      }
+
+      setLoadingMessages(true);
+      try {
+        // IMPORTANT: Use the correct API parameter name
+        console.log(`Fetching messages for forum: ${forum.id}`);
+        const response = await messageAPI.getMessages({
+          forum_id: forum.id,
+        });
+
+        console.log("API response for messages:", response);
+
+        let fetchedMessages = [];
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          fetchedMessages = response;
+        } else if (response.results && Array.isArray(response.results)) {
+          fetchedMessages = response.results;
+        } else {
+          console.error(
+            "Unexpected API response format for messages:",
+            response
+          );
+          fetchedMessages = [];
+        }
+
+        console.log("Processed messages:", fetchedMessages);
+
+        // Process messages into the format expected by the UI
+        const processedMessages = [];
+        const newUserMap = {}; // Start with a fresh user map instead of spreading the existing one
+
+        // First pass: organize messages by ID for quick lookup and build user map
+        const messagesById = {};
+        const userFetchPromises = [];
+
+        fetchedMessages.forEach((msg) => {
+          // Get user details
+          const userId = msg.user || msg.author?.id;
+
+          if (userId) {
+            // If we have user_detail in the message, use it
+            if (msg.user_detail) {
+              newUserMap[userId] = {
+                id: userId,
+                name: msg.user_detail.name || `User ${userId}`,
+                avatar:
+                  msg.user_detail.avatar ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    msg.user_detail.name || `User ${userId}`
+                  )}`,
+                role: msg.user_detail.role || "user",
+              };
+            }
+            // Otherwise, try to fetch user details if we don't already have them
+            else if (!newUserMap[userId]) {
+              // Add a promise to fetch this user's details
+              userFetchPromises.push(
+                messageAPI.getUserDetails(userId).then((userDetail) => {
+                  if (userDetail) {
+                    newUserMap[userId] = userDetail;
+                  }
+                })
+              );
+            }
+          }
+
+          // Create message object (rest of your code...)
+        });
+
+        // Wait for all user fetch operations to complete
+        if (userFetchPromises.length > 0) {
+          try {
+            await Promise.all(userFetchPromises);
+            console.log("All user details fetched:", newUserMap);
+          } catch (err) {
+            console.error("Error fetching user details:", err);
+          }
+        }
+
+        // Now continue with message processing using the enhanced userMap
+
+        // First pass: organize messages by ID for quick lookup and build user map
+        fetchedMessages.forEach((msg) => {
+          // Extract user details correctly from the API response
+          const userId = msg.user || msg.author?.id;
+
+          // Only add to userMap if we have user_detail information
+          if (userId && msg.user_detail) {
+            newUserMap[userId] = {
+              id: userId,
+              name: msg.user_detail.name || `User ${userId}`,
+              avatar:
+                msg.user_detail.avatar ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  msg.user_detail.name || `User ${userId}`
+                )}`,
+              role: msg.user_detail.role || "user",
+            };
+          }
+
+          // Create message object
+          const messageObj = {
+            id: msg.id,
+            author: msg.user_detail
+              ? {
+                  id: userId,
+                  name: msg.user_detail.name || `User ${userId}`,
+                  avatar:
+                    msg.user_detail.avatar ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                      msg.user_detail.name || `User ${userId}`
+                    )}`,
+                  role: msg.user_detail.role || "user",
+                }
+              : {
+                  id: userId,
+                  name: `User ${userId}`,
+                  avatar: `https://ui-avatars.com/api/?name=User+${userId}`,
+                  role: "user",
+                },
+            content: msg.content,
+            timestamp: msg.created_at,
+            isPinned: msg.is_pinned || false,
+            isEdited: msg.updated_at && msg.updated_at !== msg.created_at,
+            reactions: msg.reactions || {},
+            replies: [],
+            attachments: msg.attachments || [],
+            parent: msg.parent || null,
+          };
+
+          messagesById[msg.id] = messageObj;
+        });
+
+        // Second pass: organize into parent-child relationships
+        fetchedMessages.forEach((msg) => {
+          if (msg.parent) {
+            // This is a reply
+            if (messagesById[msg.parent]) {
+              messagesById[msg.parent].replies.push(messagesById[msg.id]);
+            }
+          } else {
+            // This is a top-level message
+            processedMessages.push(messagesById[msg.id]);
+          }
+        });
+
+        console.log("Structured messages:", processedMessages);
+
+        // Sort messages by time (newest first)
+        processedMessages.sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        );
+
+        // Update state
+        setMessages(processedMessages);
+        setUserMap(newUserMap);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching messages:", err);
+        setError("Failed to load messages. Please try again.");
+      } finally {
+        setLoadingMessages(false);
+        setLoading(false);
+      }
+    };
+
+    if (forum && forum.id) {
+      fetchMessages();
+    }
+  }, [forum]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
 
   const handleInputChange = (e) => {
     const text = e.target.value;
@@ -283,7 +365,14 @@ const ChatDiscussion = ({ forum }) => {
 
   const handleNewMessage = async (e) => {
     e.preventDefault();
+
     if (newMessage.trim() && !isLocked) {
+      // IMPORTANT: Check that we have a valid forum with ID
+      if (!forum || !forum.id) {
+        alert("Cannot post message: Forum information is missing or invalid.");
+        return;
+      }
+
       try {
         // Show optimistic UI update
         const tempId = `temp-${Date.now()}`;
@@ -319,23 +408,41 @@ const ChatDiscussion = ({ forum }) => {
         setNewMessage("");
         setSelectedFile(null);
 
-        // Prepare the data for the API - use the format expected by backend
+        // Prepare the data for the API
         const messageData = {
           content: newMessage,
-          forum: forum.id, // Use forum instead of forum_id based on API docs
-          parent: null, // Adding this as it's expected by the API
+          forum: forum.id, // Use the forum ID from state
+          parent: null,
         };
 
         console.log("Sending message data to API:", messageData);
 
         // Send to backend API
         const createdMessage = await messageAPI.createMessage(messageData);
-        console.log("API response:", createdMessage);
+        console.log("API response for created message:", createdMessage);
 
-        // Get author details - the API might return user ID instead of full author object
+        // Get author details
         const authorId =
           createdMessage.user || createdMessage.author?.id || currentUser?.id;
-        const authorDetails = getUserDetails(authorId, userMap);
+
+        // Use createdMessage.user_detail if available, otherwise use current user info
+        const authorDetails = createdMessage.user_detail
+          ? {
+              id: authorId,
+              name: createdMessage.user_detail.name || `User ${authorId}`,
+              avatar:
+                createdMessage.user_detail.avatar ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  createdMessage.user_detail.name || `User ${authorId}`
+                )}`,
+              role: createdMessage.user_detail.role || "user",
+            }
+          : currentUser || {
+              id: authorId,
+              name: `User ${authorId}`,
+              avatar: `https://ui-avatars.com/api/?name=User+${authorId}`,
+              role: "user",
+            };
 
         // Replace the temporary message with the real one from API
         setMessages((prevMessages) =>
@@ -343,12 +450,7 @@ const ChatDiscussion = ({ forum }) => {
             msg.id === tempId
               ? {
                   id: createdMessage.id,
-                  author: {
-                    id: authorId,
-                    name: authorDetails.name,
-                    avatar: authorDetails.avatar,
-                    role: authorDetails.role || "user",
-                  },
+                  author: authorDetails,
                   content: createdMessage.content || newMessage,
                   timestamp:
                     createdMessage.created_at || new Date().toISOString(),
@@ -363,15 +465,14 @@ const ChatDiscussion = ({ forum }) => {
         );
 
         // Add this user to the userMap for future reference
-        if (authorId) {
+        if (
+          authorId &&
+          authorDetails.name &&
+          authorDetails.name !== `User ${authorId}`
+        ) {
           setUserMap((prevMap) => ({
             ...prevMap,
-            [authorId]: {
-              id: authorId,
-              name: authorDetails.name,
-              avatar: authorDetails.avatar,
-              role: authorDetails.role,
-            },
+            [authorId]: authorDetails,
           }));
         }
       } catch (err) {
@@ -402,20 +503,33 @@ const ChatDiscussion = ({ forum }) => {
       // Send to API
       const createdReply = await messageAPI.createMessage(replyData);
 
-      // Get author details - the API might return user ID instead of full author object
+      // Get author details from the API response
       const authorId =
         createdReply.user || createdReply.author?.id || currentUser?.id;
-      const authorDetails = getUserDetails(authorId, userMap);
+
+      // Use createdReply.user_detail if available, otherwise use current user info
+      const authorDetails = createdReply.user_detail
+        ? {
+            id: authorId,
+            name: createdReply.user_detail.name || `User ${authorId}`,
+            avatar:
+              createdReply.user_detail.avatar ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                createdReply.user_detail.name || `User ${authorId}`
+              )}`,
+            role: createdReply.user_detail.role || "user",
+          }
+        : currentUser || {
+            id: authorId,
+            name: `User ${authorId}`,
+            avatar: `https://ui-avatars.com/api/?name=User+${authorId}`,
+            role: "user",
+          };
 
       // Format the reply data
       const formattedReply = {
         id: createdReply.id,
-        author: {
-          id: authorId,
-          name: authorDetails.name,
-          avatar: authorDetails.avatar,
-          role: authorDetails.role || "user",
-        },
+        author: authorDetails,
         content: createdReply.content,
         timestamp: createdReply.created_at || new Date().toISOString(),
         reactions: {},
@@ -434,16 +548,15 @@ const ChatDiscussion = ({ forum }) => {
         })
       );
 
-      // Add this user to the userMap for future reference
-      if (authorId) {
+      // Add this user to the userMap for future reference if it has a proper name
+      if (
+        authorId &&
+        authorDetails.name &&
+        authorDetails.name !== `User ${authorId}`
+      ) {
         setUserMap((prevMap) => ({
           ...prevMap,
-          [authorId]: {
-            id: authorId,
-            name: authorDetails.name,
-            avatar: authorDetails.avatar,
-            role: authorDetails.role,
-          },
+          [authorId]: authorDetails,
         }));
       }
     } catch (err) {
@@ -654,12 +767,27 @@ const ChatDiscussion = ({ forum }) => {
     return new Date(b.timestamp) - new Date(a.timestamp);
   });
 
-  if (loading) {
-    return <div className="p-4 text-center">Loading discussion...</div>;
+  if (loading && !forum) {
+    return (
+      <div className="p-4 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-2">Loading discussion...</p>
+      </div>
+    );
   }
 
-  if (error) {
-    return <div className="p-4 text-center text-red-500">{error}</div>;
+  if (error && !forum) {
+    return (
+      <div className="p-4 text-center text-red-500">
+        {error}
+        <button
+          onClick={() => navigate("/forums")}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded block mx-auto"
+        >
+          Back to Forums
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -668,11 +796,13 @@ const ChatDiscussion = ({ forum }) => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-              {forum.title}
+              {forum?.name || forum?.title || "Discussion Forum"}
             </h2>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
-                {forum.category?.name || "General"}
+                {forum?.category?.name ||
+                  forum?.category_detail?.name ||
+                  "General"}
               </span>
               <span className="text-xs text-gray-500">
                 {messages.length} messages
@@ -717,10 +847,11 @@ const ChatDiscussion = ({ forum }) => {
       </div>
 
       {/* Messages list */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
         {loadingMessages ? (
           <div className="p-6 text-center text-gray-500">
-            Loading messages...
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2">Loading messages...</p>
           </div>
         ) : sortedMessages.length > 0 ? (
           sortedMessages.map((message) => (
@@ -757,6 +888,7 @@ const ChatDiscussion = ({ forum }) => {
             No messages yet. Be the first to post!
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Message input form */}
@@ -777,6 +909,7 @@ const ChatDiscussion = ({ forum }) => {
             <button
               type="submit"
               className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3 py-1 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              disabled={!newMessage.trim()}
             >
               Send
             </button>
@@ -827,22 +960,15 @@ const ChatDiscussion = ({ forum }) => {
 
 ChatDiscussion.propTypes = {
   forum: PropTypes.shape({
-    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
-    title: PropTypes.string.isRequired,
+    id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    name: PropTypes.string,
+    title: PropTypes.string,
+    description: PropTypes.string,
     category: PropTypes.object,
+    category_detail: PropTypes.object,
     creator_id: PropTypes.number,
     is_locked: PropTypes.bool,
-  }).isRequired,
-};
-
-ChatDiscussion.defaultProps = {
-  forum: {
-    id: 1,
-    title: "Discussion Forum",
-    category: { name: "General" },
-    creator_id: 1,
-    is_locked: false,
-  },
+  }),
 };
 
 export default ChatDiscussion;
