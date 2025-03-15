@@ -12,7 +12,7 @@ const getAccessToken = () => {
 };
 
 // Headers for authenticated requests
-const authHeaders = () => {
+export const authHeaders = () => {
   const headers = {
     "Content-Type": "application/json",
     "X-CSRFToken": getCsrfToken(),

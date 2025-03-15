@@ -65,7 +65,7 @@ class ForumViewSet(viewsets.ModelViewSet):
         if is_locked:
             queryset = queryset.filter(is_locked=is_locked)
         
-        return queryset.distinct()
+        return queryset.distinct().order_by('-created_at')
 
     def perform_create(self, serializer):
         # Set the current logged-in user as the creator.

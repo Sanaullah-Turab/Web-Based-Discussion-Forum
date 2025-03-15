@@ -1,123 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ChatDiscussion from '../components/ChatDiscussion';
 import Modal from '../components/Modal';
+import axios from 'axios';
+import { authHeaders } from '../services/discussionApi.js';
 
-const DUMMY_CATEGORIES = [
-  { id: 1, name: 'Technology' },
-  { id: 2, name: 'Science' },
-  { id: 3, name: 'Gaming' },
-  { id: 4, name: 'General' }
-];
-
-const DUMMY_FORUMS = [
-  {
-    id: 1,
-    title: 'Web Development Discussion',
-    category: 'Technology',
-    messageCount: 125,
-    replyCount: 89,
-    lastActivity: '2024-03-11T10:00:00',
-    description: 'Discuss the latest web development trends and technologies.'
-  },
-  {
-    id: 2,
-    title: 'AI and Machine Learning',
-    category: 'Technology',
-    messageCount: 98,
-    replyCount: 45,
-    lastActivity: '2024-03-11T09:30:00',
-    description: 'Share your experiences with AI and ML technologies.'
-  },
-  {
-    id: 3,
-    title: 'Space Exploration News',
-    category: 'Science',
-    messageCount: 76,
-    replyCount: 32,
-    lastActivity: '2024-03-11T08:45:00',
-    description: 'Latest updates and discussions about space exploration.'
-  },
-  {
-    id: 4,
-    title: 'Latest Gaming Releases',
-    category: 'Gaming',
-    messageCount: 234,
-    replyCount: 156,
-    lastActivity: '2024-03-11T11:15:00',
-    description: 'Discuss new game releases and gaming experiences.'
-  },
-  {
-    id: 5,
-    title: 'General Discussion',
-    category: 'General',
-    messageCount: 445,
-    replyCount: 289,
-    lastActivity: '2024-03-11T11:30:00',
-    description: 'Open discussions on various topics.'
-  }
-];
-
-const ITEMS_PER_PAGE = 3; 
+const BASE_URL = 'http://localhost:8000/';
+const PAGE_SIZE = 1;
+let TOTAL_PAGES = 1;
 
 const Home = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState({ name: 'all' });
   const [sortBy, setSortBy] = useState('recent');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [forums, setForums] = useState({});
+  const [categories, setCategories] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newForum, setNewForum] = useState({
-    title: '',
-    category: DUMMY_CATEGORIES[0].name,
-    description: ''
-  });
   const [selectedForum, setSelectedForum] = useState(null);
+  const [newForum, setNewForum] = useState({
+    name: '',
+    category: '',
+    description: '',
+    tags: [],
+    is_locked: false,
+  });
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredForums = DUMMY_FORUMS
-    .filter(forum => {
-      const matchesCategory = selectedCategory === 'all' || forum.category === selectedCategory;
-      const matchesSearch = forum.title.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'recent') {
-        return new Date(b.lastActivity) - new Date(a.lastActivity);
-      }
-      return b.messageCount - a.messageCount;
-    });
+  // fetch forums and setForums state
+  useEffect(() => {
+    console.log("fetching forums");
+    fetchForums(`${BASE_URL}api/forums/?page_size=${PAGE_SIZE}`);
+    fetchCategories();
+  }, []);
 
-  const totalPages = Math.ceil(filteredForums.length / ITEMS_PER_PAGE);
-  const paginatedForums = filteredForums.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const fetchForums = async (url) => {
+    try {
+      const response = await axios.get(url, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
+      setForums(response.data);
+      TOTAL_PAGES = Math.ceil(response.data.count / PAGE_SIZE);
+      console.log("forms", response.data);
+    }
+    catch (error) {
+      console.error("Error fetching forums:", error);
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${BASE_URL}api/categories`, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
+      console.log("categories", response.data);
+      setCategories(response.data);
+
+      // set default category for new forum
+      setNewForum({ ...newForum, category: String(response.data[0].id) });
+    }
+    catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  }
+
+  const createForum = async (url) => {
+    try {
+      const response = await axios.post(url, newForum, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
+      console.log("Forum created:", response.data);
+      setIsCreateModalOpen(false);
+      setNewForum({ title: '', category: '', description: '' });
+      setSelectedForum(response.data);
+    }
+    catch (error) {
+      console.error("Error creating forum:", error);
+    }
+  }
+
+
+  function handleCreateForum(e) {
+    e.preventDefault();
+    console.log("Creating forum", newForum);
+    createForum(`${BASE_URL}api/forums/`);
+  }
+
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
+    fetchForums(`${BASE_URL}api/forums/?page_size=${PAGE_SIZE}&page=${newPage}&category_id=${selectedCategory.id ? selectedCategory.id : ''}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleCreateForum = (e) => {
-    e.preventDefault();
-    const newForumData = {
-      id: DUMMY_FORUMS.length + 1,
-      title: newForum.title,
-      category: newForum.category,
-      description: newForum.description,
-      messageCount: 0,
-      replyCount: 0,
-      lastActivity: new Date().toISOString(),
-    };
-    
-    // Add the new forum to the list
-    DUMMY_FORUMS.unshift(newForumData);
-    
-    // Reset form and close modal
-    setIsCreateModalOpen(false);
-    setNewForum({ title: '', category: DUMMY_CATEGORIES[0].name, description: '' });
-    
-    // Select the newly created forum
-    setSelectedForum(newForumData);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 font-[Poppins]">
@@ -177,30 +153,32 @@ const Home = () => {
           <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex flex-wrap gap-2">
-                <button 
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
-                    selectedCategory === 'all' 
-                      ? 'bg-blue-600 text-white shadow-md transform scale-105' 
+                <button
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-all ${selectedCategory?.name === 'all'
+                      ? 'bg-blue-600 text-white shadow-md transform scale-105'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                  }`}
+                    }`}
                   onClick={() => {
-                    setSelectedCategory('all');
+                    setSelectedCategory({ name: 'all' });
+                    fetchForums(`${BASE_URL}api/forums/?page_size=${PAGE_SIZE}`);
                     setSelectedForum(null);
+                    setCurrentPage(1);
                   }}
                 >
                   All
                 </button>
-                {DUMMY_CATEGORIES.map(category => (
+                {categories.map(category => (
                   <button
                     key={category.id}
-                    className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
-                      selectedCategory === category.name
+                    className={`px-3 py-1.5 text-sm rounded-lg transition-all ${selectedCategory?.name === category.name
                         ? 'bg-blue-600 text-white shadow-md transform scale-105'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
-                    }`}
+                      }`}
                     onClick={() => {
-                      setSelectedCategory(category.name);
+                      setSelectedCategory(category);
+                      fetchForums(`${BASE_URL}api/forums/?page_size=${PAGE_SIZE}&category_id=${category.id}`);
                       setSelectedForum(null);
+                      setCurrentPage(1);
                     }}
                   >
                     {category.name}
@@ -236,7 +214,7 @@ const Home = () => {
         ) : (
           <>
             <div className="space-y-3 sm:space-y-4">
-              {paginatedForums.map(forum => (
+              {forums?.results?.map(forum => (
                 <div
                   key={forum.id}
                   className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
@@ -245,14 +223,14 @@ const Home = () => {
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                     <div className="space-y-2">
                       <h3 className="text-base sm:text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors">
-                        {forum.title}
+                        {forum.name}
                       </h3>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded-full">
-                          {forum.category}
+                          {forum.category_detail?.name}
                         </span>
                         <span className="text-xs text-gray-500">
-                          Created {new Date(forum.lastActivity).toLocaleDateString()}
+                          Created {new Date(forum.created_at).toLocaleDateString()}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600">{forum.description}</p>
@@ -277,7 +255,7 @@ const Home = () => {
             </div>
 
             {/* Empty State */}
-            {filteredForums.length === 0 && (
+            {forums?.results?.length === 0 && (
               <div className="text-center py-8 sm:py-12 bg-white rounded-xl shadow-sm">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -304,7 +282,7 @@ const Home = () => {
             )}
 
             {/* Pagination */}
-            {filteredForums.length > 0 && (
+            {TOTAL_PAGES > 0 && (
               <div className="mt-6 flex justify-center gap-1.5 sm:gap-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
@@ -317,7 +295,7 @@ const Home = () => {
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                {Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1).map(page => (
                   <button
                     key={page}
                     onClick={() => handlePageChange(page)}
@@ -332,9 +310,9 @@ const Home = () => {
                 ))}
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === TOTAL_PAGES}
                   className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
-                    currentPage === totalPages
+                    currentPage === TOTAL_PAGES
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm hover:shadow-md'
                   }`}
@@ -360,8 +338,8 @@ const Home = () => {
               <input
                 type="text"
                 id="title"
-                value={newForum.title}
-                onChange={(e) => setNewForum({ ...newForum, title: e.target.value })}
+                value={newForum.name}
+                onChange={(e) => setNewForum({ ...newForum, name: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 required
               />
@@ -376,8 +354,8 @@ const Home = () => {
                 onChange={(e) => setNewForum({ ...newForum, category: e.target.value })}
                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                {DUMMY_CATEGORIES.map(category => (
-                  <option key={category.id} value={category.name}>
+                {categories?.map(category => (
+                  <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
